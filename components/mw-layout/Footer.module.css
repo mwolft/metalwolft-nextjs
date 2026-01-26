@@ -1,0 +1,20 @@
+.footer {
+  border-top: 1px solid #e5e5e5;
+  margin-top: 4rem;
+}
+
+.inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+}
+
+.nav {
+  display: flex;
+  gap: 1.5rem;
+}
