@@ -37,3 +37,20 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Next.js
+.next/
+
+# Python
+backend/venv/
+backend/__pycache__/
+*.pyc
+
+# Env
+.env
+.env.local
