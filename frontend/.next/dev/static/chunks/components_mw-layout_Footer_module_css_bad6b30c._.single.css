@@ -1,0 +1,22 @@
+/* [project]/components/mw-layout/Footer.module.css [app-client] (css) */
+.Footer-module__JCAjnW__footer {
+  border-top: 1px solid #e5e5e5;
+  margin-top: 4rem;
+}
+
+.Footer-module__JCAjnW__inner {
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  display: flex;
+}
+
+.Footer-module__JCAjnW__nav {
+  gap: 1.5rem;
+  display: flex;
+}
+
+/*# sourceMappingURL=components_mw-layout_Footer_module_css_bad6b30c._.single.css.map*/
