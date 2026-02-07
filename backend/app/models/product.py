@@ -1,5 +1,6 @@
 from app.extensions import db
 
+
 class Product(db.Model):
     __tablename__ = "products"
 
@@ -9,14 +10,15 @@ class Product(db.Model):
     slug = db.Column(db.String(120), unique=True, nullable=False)
     name = db.Column(db.String(120), nullable=False)
 
-    # Categoría funcional (no tabla aparte)
+
     category = db.Column(
         db.Enum("fijas", "abatibles", "correderas", name="product_category"),
         nullable=False
     )
 
     # Contenido
-    description = db.Column(db.Text, nullable=False)
+    description = db.Column(db.Text, nullable=True)   
+    content = db.Column(db.Text, nullable=False)      
 
     # SEO
     seo_title = db.Column(db.String(180), nullable=True)
@@ -28,8 +30,16 @@ class Product(db.Model):
     is_new = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True)
 
-    # Imagen principal (simple por ahora)
+    # Imagen principal
     main_image = db.Column(db.String(255), nullable=True)
+
+
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(
+        db.DateTime,
+        server_default=db.func.now(),
+        onupdate=db.func.now()
+    )
 
     def __repr__(self):
         return f"<Product {self.id} {self.slug}>"
@@ -45,6 +55,7 @@ class Product(db.Model):
             "name": self.name,
             "category": self.category,
             "description": self.description,
+            "content": self.content,
             "seo": {
                 "title": self.seo_title,
                 "description": self.seo_description,
