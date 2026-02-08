@@ -2,11 +2,14 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from app.config import Config
 from app.extensions import db
-from app.models import product  # importa modelos
+from app.models.product import Product
+from app.models.user import User
+from app.models.cart import Cart
 
 config = context.config
 
 target_metadata = db.metadata
+
 
 
 def run_migrations_offline():
