@@ -10,3 +10,5 @@ class Config:
 
     JWT_SECRET_KEY = "metalwolft_super_secret_jwt_key_2026_secure"
     JWT_ALGORITHM = "HS256"
+
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")

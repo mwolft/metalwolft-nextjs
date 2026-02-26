@@ -894,12 +894,20 @@
     overflow: hidden;
   }
 
+  .block {
+    display: block;
+  }
+
   .flex {
     display: flex;
   }
 
   .hidden {
     display: none;
+  }
+
+  .inline {
+    display: inline;
   }
 
   .w-full {

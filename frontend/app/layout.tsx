@@ -1,10 +1,14 @@
 // app/layout.tsx
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
+
 import Header from "../components/mw-layout/Header";
 import Footer from "../components/mw-layout/Footer";
 import "./globals.css";
 
-export const metadata = {
+import { GoogleOAuthProvider } from "@react-oauth/google";
+
+export const metadata: Metadata = {
   title: {
     default: "MetalWolft",
     template: "%s | MetalWolft",
@@ -23,9 +27,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <Header />
-        <main>{children}</main>
-        <Footer />
+        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
+          <Header />
+          <main>{children}</main>
+          <Footer />
+        </GoogleOAuthProvider>
       </body>
     </html>
   );

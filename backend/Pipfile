@@ -10,6 +10,9 @@ flask-migrate = "*"
 flask-cors = "*"
 python-dotenv = "*"
 pyjwt = "*"
+flask-admin = "*"
+google-auth = "*"
+requests = "*"
 
 [dev-packages]
 
