@@ -8,6 +8,7 @@ from app.routes.auth_routes import auth_bp
 from app.routes.profile_routes import profile_bp
 from app.routes.cart_routes import cart_bp
 from app.routes.google_auth_routes import google_auth_bp
+from app.routes.pricing_routes import pricing_bp
 
 from app.admin import UserAdmin
 from app.models.user import User
@@ -49,6 +50,7 @@ def create_app():
     app.register_blueprint(profile_bp)
     app.register_blueprint(cart_bp)
     app.register_blueprint(google_auth_bp)
+    app.register_blueprint(pricing_bp)
     
 
 

@@ -2,6 +2,7 @@ import os
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
+
 class Config:
     SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(
         BASE_DIR, "..", "metalwolft.db"
@@ -12,3 +13,21 @@ class Config:
     JWT_ALGORITHM = "HS256"
 
     GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+
+    DEFAULT_CURRENCY = "EUR"
+
+    DEFAULT_MIN_WIDTH_CM = 40
+    DEFAULT_MAX_WIDTH_CM = 240
+    DEFAULT_MIN_HEIGHT_CM = 40
+    DEFAULT_MAX_HEIGHT_CM = 240
+
+    FREE_SHIPPING_THRESHOLD = 150
+    BASE_SHIPPING_FEE = 17
+
+    OVERSIZE_SIDE_THRESHOLD_CM = 175
+    OVERSIZE_SUM_THRESHOLD_CM = 300
+    OVERSIZE_SUM_MAX_THRESHOLD_CM = 400
+
+    OVERSIZE_SIDE_SURCHARGE = 49
+    OVERSIZE_SUM_SURCHARGE = 49
+    OVERSIZE_SUM_MAX_SURCHARGE = 99
