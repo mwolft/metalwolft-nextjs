@@ -9,6 +9,8 @@ from app.routes.profile_routes import profile_bp
 from app.routes.cart_routes import cart_bp
 from app.routes.google_auth_routes import google_auth_bp
 from app.routes.pricing_routes import pricing_bp
+from app.routes.checkout_routes import checkout_bp
+from app.routes.payment_routes import orders_bp, payments_bp
 
 from app.admin import UserAdmin
 from app.models.user import User
@@ -23,7 +25,11 @@ def create_app():
         supports_credentials=True,
         resources={
             r"/api/*": {
-                "origins": "https://literate-tribble-5gv75j7gv5q42vvgg-3000.app.github.dev"
+                "origins": [
+                    "https://literate-tribble-5gv75j7gv5q42vvgg-3000.app.github.dev",
+                    "http://localhost:3000",
+                    "http://127.0.0.1:3000"
+                ]
             }
         }
     )
@@ -51,6 +57,9 @@ def create_app():
     app.register_blueprint(cart_bp)
     app.register_blueprint(google_auth_bp)
     app.register_blueprint(pricing_bp)
+    app.register_blueprint(checkout_bp)
+    app.register_blueprint(payments_bp)
+    app.register_blueprint(orders_bp)
     
 
 

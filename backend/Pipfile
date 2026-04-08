@@ -13,6 +13,7 @@ pyjwt = "*"
 flask-admin = "*"
 google-auth = "*"
 requests = "*"
+stripe = "*"
 
 [dev-packages]
 
