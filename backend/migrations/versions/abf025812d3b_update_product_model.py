@@ -17,8 +17,32 @@ depends_on = None
 
 
 def upgrade():
-    pass
+    with op.batch_alter_table('products', schema=None) as batch_op:
+        batch_op.add_column(
+            sa.Column('content', sa.Text(), nullable=False, server_default='')
+        )
+        batch_op.add_column(
+            sa.Column('price_m2', sa.Numeric(10, 2), nullable=False, server_default='0')
+        )
+        batch_op.add_column(
+            sa.Column('min_width_cm', sa.Integer(), nullable=False, server_default='40')
+        )
+        batch_op.add_column(
+            sa.Column('max_width_cm', sa.Integer(), nullable=False, server_default='240')
+        )
+        batch_op.add_column(
+            sa.Column('min_height_cm', sa.Integer(), nullable=False, server_default='40')
+        )
+        batch_op.add_column(
+            sa.Column('max_height_cm', sa.Integer(), nullable=False, server_default='240')
+        )
 
 
 def downgrade():
-    pass
+    with op.batch_alter_table('products', schema=None) as batch_op:
+        batch_op.drop_column('max_height_cm')
+        batch_op.drop_column('min_height_cm')
+        batch_op.drop_column('max_width_cm')
+        batch_op.drop_column('min_width_cm')
+        batch_op.drop_column('price_m2')
+        batch_op.drop_column('content')

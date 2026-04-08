@@ -21,6 +21,13 @@ class Product(db.Model):
     description = db.Column(db.Text, nullable=True)   
     content = db.Column(db.Text, nullable=False)      
 
+    # Pricing
+    price_m2 = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    min_width_cm = db.Column(db.Integer, nullable=False, default=40)
+    max_width_cm = db.Column(db.Integer, nullable=False, default=240)
+    min_height_cm = db.Column(db.Integer, nullable=False, default=40)
+    max_height_cm = db.Column(db.Integer, nullable=False, default=240)
+
     # SEO
     seo_title = db.Column(db.String(180), nullable=True)
     seo_description = db.Column(db.Text, nullable=True)
