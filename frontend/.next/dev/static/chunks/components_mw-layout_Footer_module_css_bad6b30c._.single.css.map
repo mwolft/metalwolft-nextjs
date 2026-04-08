@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/components/mw-layout/Footer.module.css"],"sourcesContent":[".footer {\n  border-top: 1px solid #e5e5e5;\n  margin-top: 4rem;\n}\n\n.inner {\n  max-width: 1200px;\n  margin: 0 auto;\n  padding: 2rem 1rem;\n\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: 2rem;\n}\n\n.nav {\n  display: flex;\n  gap: 1.5rem;\n}\n"],"names":[],"mappings":"AAAA;;;;;AAKA;;;;;;;;;;AAWA"}}]
-}
