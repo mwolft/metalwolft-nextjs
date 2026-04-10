@@ -12,7 +12,18 @@ from app.routes.pricing_routes import pricing_bp
 from app.routes.checkout_routes import checkout_bp
 from app.routes.payment_routes import orders_bp, payments_bp
 
-from app.admin import UserAdmin
+from app.admin import (
+    CartAdmin,
+    CartItemAdmin,
+    OrderAdmin,
+    PaymentAdmin,
+    ProductAdmin,
+    UserAdmin,
+)
+from app.models.cart import Cart, CartItem
+from app.models.order import Order
+from app.models.payment import Payment
+from app.models.product import Product
 from app.models.user import User
 from app.extensions import db
 
@@ -50,6 +61,11 @@ def create_app():
     admin = Admin(app, name="MetalWolft Admin", url="/admin")
 
     admin.add_view(UserAdmin(User, db.session))
+    admin.add_view(ProductAdmin(Product, db.session))
+    admin.add_view(OrderAdmin(Order, db.session))
+    admin.add_view(PaymentAdmin(Payment, db.session))
+    admin.add_view(CartAdmin(Cart, db.session))
+    admin.add_view(CartItemAdmin(CartItem, db.session))
 
     app.register_blueprint(products_bp)
     app.register_blueprint(auth_bp)
