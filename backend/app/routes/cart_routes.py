@@ -9,7 +9,7 @@ from app.services.pricing_service import PricingError
 from app.utils.auth import get_current_user_from_request, login_required
 
 
-cart_bp = Blueprint("cart", __name__, url_prefix="/api/cart")
+cart_bp = Blueprint("cart_api", __name__, url_prefix="/api/cart")
 
 
 def _resolve_cart():
