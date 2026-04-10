@@ -6,7 +6,8 @@ export function middleware(request: NextRequest) {
 
   const isPrivate =
     pathname.startsWith("/profile") ||
-    pathname.startsWith("/checkout");
+    pathname.startsWith("/checkout") ||
+    pathname.startsWith("/pedidos");
 
   if (!isPrivate) {
     return NextResponse.next();
