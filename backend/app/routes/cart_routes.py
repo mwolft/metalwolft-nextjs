@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, make_response
+from flask import Blueprint, request, jsonify, make_response, g
 
 from app.services.cart_service import (
     CartNotFoundError,
@@ -209,3 +209,43 @@ def merge_cart():
     response.delete_cookie("anon_cart_id")
 
     return response
+
+
+@cart_bp.post("/add")
+@login_required
+def add_to_cart():
+    data = request.get_json() or {}
+    user = g.current_user
+
+    cart, _, _ = CartService.get_or_create_cart(
+        anonymous_id=None,
+        user=user,
+    )
+
+    try:
+        item = CartService.add_item(
+            cart=cart,
+            product_id=int(data.get("product_id")),
+            width_cm=int(data.get("width_cm")),
+            height_cm=int(data.get("height_cm")),
+            quantity=int(data.get("quantity")),
+        )
+    except PricingError as exc:
+        return jsonify({
+            "error": {
+                "code": exc.code,
+                "message": exc.message,
+            }
+        }), exc.status_code
+    except Exception:
+        return jsonify({
+            "error": {
+                "code": "INVALID_PAYLOAD",
+                "message": "Invalid input data.",
+            }
+        }), 400
+
+    return jsonify({
+        "message": "Item added to cart",
+        "item_id": item.id
+    }), 201

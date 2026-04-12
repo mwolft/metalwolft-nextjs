@@ -123,3 +123,15 @@ def get_order(order_id: int):
         }), exc.status_code
 
     return jsonify(CheckoutService.serialize_order(order)), 200
+
+
+@payments_bp.post("/dev/mark-paid")
+def dev_mark_paid():
+    data = request.get_json() or {}
+    ref = data.get("provider_reference")
+
+    PaymentService._mark_stripe_payment_completed(
+        provider_reference=ref
+    )
+
+    return jsonify({"status": "ok"}), 200
