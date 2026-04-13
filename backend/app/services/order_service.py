@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from app.models.order import Order, OrderItem
+from app.models.product import ProductOption
 from app.extensions import db
 
 
@@ -8,9 +9,6 @@ class OrderService:
 
     @staticmethod
     def create_order_from_checkout(*, user, preview: dict):
-        """
-        Crea el Order (sin items).
-        """
         summary = preview["summary"]
         shipping = preview["shipping_address"]
         customer = preview["customer"]
@@ -36,19 +34,32 @@ class OrderService:
         )
 
         db.session.add(order)
-        db.session.flush()  # necesario para tener order.id
+        db.session.flush()
 
         return order
 
     @staticmethod
     def create_order_items(*, order, preview: dict):
-        """
-        Crea los OrderItems asociados al Order.
-        """
+
         for item in preview["items"]:
             pricing = item["pricing"]
             product = item["product"]
             config = item["configuration"]
+
+            options_slugs = config.get("options", [])
+
+            options_db = ProductOption.query.filter(
+                ProductOption.slug.in_(options_slugs)
+            ).all()
+
+            options_snapshot = [
+                {
+                    "option": opt.slug,
+                    "group": opt.group.slug,
+                    "price": str(opt.price_modifier),
+                }
+                for opt in options_db
+            ]
 
             order_item = OrderItem(
                 order_id=order.id,
@@ -58,6 +69,7 @@ class OrderService:
                 width_cm=config["width_cm"],
                 height_cm=config["height_cm"],
                 quantity=config["quantity"],
+                options_snapshot=options_snapshot,  # 🔥 AQUÍ
                 unit_area_m2=Decimal(pricing["unit_area_m2"]),
                 unit_price_m2=Decimal(pricing["unit_price_m2"]),
                 unit_price_base=Decimal(pricing["unit_price_base"]),

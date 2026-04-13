@@ -70,6 +70,8 @@ class OrderItem(db.Model):
     height_cm = db.Column(db.Integer, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
 
+    options_snapshot = db.Column(db.JSON, nullable=False, default=list)
+
     unit_area_m2 = db.Column(db.Numeric(10, 4), nullable=False)
     unit_price_m2 = db.Column(db.Numeric(10, 2), nullable=False)
     unit_price_base = db.Column(db.Numeric(10, 2), nullable=False)

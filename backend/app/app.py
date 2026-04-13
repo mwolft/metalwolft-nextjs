@@ -19,12 +19,14 @@ from app.admin import (
     PaymentAdmin,
     ProductAdmin,
     UserAdmin,
+    OrderItemAdmin,
 )
 from app.models.cart import Cart, CartItem
 from app.models.order import Order
 from app.models.payment import Payment
 from app.models.product import Product
 from app.models.user import User
+from app.models.order import OrderItem
 from app.extensions import db
 
 def create_app():
@@ -66,6 +68,7 @@ def create_app():
     admin.add_view(PaymentAdmin(Payment, db.session))
     admin.add_view(CartAdmin(Cart, db.session))
     admin.add_view(CartItemAdmin(CartItem, db.session))
+    admin.add_view(OrderItemAdmin(OrderItem, db.session))
 
     app.register_blueprint(products_bp)
     app.register_blueprint(auth_bp)

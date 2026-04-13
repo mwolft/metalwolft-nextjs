@@ -72,7 +72,7 @@ class ProductAdmin(ModelView):
 
 
 class OrderAdmin(ModelView):
-    column_list = ("id", "user_id", "total", "status", "created_at")
+    column_list = ("id", "user_id", "total", "status", "created_at", "items")
     column_filters = ("status", "currency", "created_at")
     column_searchable_list = ("id", "customer_name", "customer_email")
     column_default_sort = ("created_at", True)
@@ -87,6 +87,49 @@ class OrderAdmin(ModelView):
         "status": "Estado",
         "created_at": "Fecha",
     }
+
+
+class OrderItemAdmin(ModelView):
+    column_list = (
+        "id",
+        "order_id",
+        "product_name_snapshot",
+        "dimensions",
+        "quantity",
+        "options_display",
+        "total",
+    )
+
+    can_create = False
+    can_edit = False
+    can_delete = False
+    can_view_details = True
+
+    column_labels = {
+        "id": "ID",
+        "order_id": "Pedido",
+        "product_name_snapshot": "Producto",
+        "dimensions": "Dimensiones",
+        "quantity": "Cantidad",
+        "options_display": "Opciones",
+        "total": "Total",
+    }
+
+    # 🔥 columnas virtuales
+    column_formatters = {
+        "dimensions": lambda v, c, m, p: f"{m.width_cm} x {m.height_cm} cm",
+        "options_display": lambda v, c, m, p: OrderItemAdmin.format_options(m),
+    }
+
+    @staticmethod
+    def format_options(model):
+        if not model.options_snapshot:
+            return "-"
+
+        return ", ".join(
+            f"{opt['option']} (+{opt['price']}€)"
+            for opt in model.options_snapshot
+        )
 
 
 class PaymentAdmin(ModelView):
