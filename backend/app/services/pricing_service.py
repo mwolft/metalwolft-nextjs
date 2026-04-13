@@ -1,7 +1,14 @@
 from decimal import Decimal, ROUND_HALF_UP
 
+from sqlalchemy.orm import selectinload
+
 from app.config import Config
-from app.models.product import Product
+from app.models.product import (
+    OptionGroup,
+    Product,
+    ProductOption,
+    ProductOptionAssignment,
+)
 
 
 TWO_DECIMALS = Decimal("0.01")
@@ -18,28 +25,52 @@ class PricingError(Exception):
 
 class PricingService:
     @staticmethod
-    def quote(*, product_id: int, width_cm: int, height_cm: int, quantity: int = 1):
+    def quote(
+        *,
+        product_id: int,
+        configuration: dict | None = None,
+        width_cm: int | None = None,
+        height_cm: int | None = None,
+        quantity: int = 1,
+    ):
+        normalized_configuration = PricingService._normalize_configuration(
+            configuration=configuration,
+            width_cm=width_cm,
+            height_cm=height_cm,
+        )
+        normalized_width_cm = normalized_configuration["width_cm"]
+        normalized_height_cm = normalized_configuration["height_cm"]
+        normalized_options = normalized_configuration["options"]
+
         product = PricingService._get_product(product_id)
         PricingService._validate_inputs(
             product=product,
-            width_cm=width_cm,
-            height_cm=height_cm,
+            width_cm=normalized_width_cm,
+            height_cm=normalized_height_cm,
             quantity=quantity,
         )
 
-        unit_area_m2 = PricingService._calculate_area_m2(width_cm, height_cm)
+        unit_area_m2 = PricingService._calculate_area_m2(
+            normalized_width_cm,
+            normalized_height_cm,
+        )
         unit_price_m2 = PricingService._to_money(product.price_m2)
         unit_price_base = PricingService._money(unit_area_m2 * unit_price_m2)
+        unit_options_modifier = PricingService._calculate_options_modifier(
+            product=product,
+            options=normalized_options,
+        )
+        unit_price = PricingService._money(unit_price_base + unit_options_modifier)
 
         unit_shipping_surcharge, surcharge_rule = (
             PricingService._calculate_size_surcharge(
-                width_cm=width_cm,
-                height_cm=height_cm,
+                width_cm=normalized_width_cm,
+                height_cm=normalized_height_cm,
             )
         )
 
         products_subtotal = PricingService._money(
-            unit_price_base * Decimal(quantity)
+            unit_price * Decimal(quantity)
         )
         shipping_base, shipping_rule = PricingService._calculate_shipping_base(
             products_subtotal
@@ -64,14 +95,18 @@ class PricingService:
                 "name": product.name,
             },
             "input": {
-                "width_cm": width_cm,
-                "height_cm": height_cm,
+                "width_cm": normalized_width_cm,
+                "height_cm": normalized_height_cm,
                 "quantity": quantity,
             },
             "pricing": {
                 "unit_area_m2": PricingService._serialize_decimal(unit_area_m2, 4),
                 "unit_price_m2": PricingService._serialize_decimal(unit_price_m2),
                 "unit_price_base": PricingService._serialize_decimal(unit_price_base),
+                "unit_options_modifier": PricingService._serialize_decimal(
+                    unit_options_modifier
+                ),
+                "unit_price": PricingService._serialize_decimal(unit_price),
                 "unit_shipping_surcharge": PricingService._serialize_decimal(
                     unit_shipping_surcharge
                 ),
@@ -89,8 +124,95 @@ class PricingService:
         }
 
     @staticmethod
+    def _normalize_configuration(
+        *,
+        configuration: dict | None = None,
+        width_cm: int | None = None,
+        height_cm: int | None = None,
+    ) -> dict:
+        if configuration is None:
+            configuration = {
+                "width_cm": width_cm,
+                "height_cm": height_cm,
+                "options": [],
+            }
+
+        if not isinstance(configuration, dict):
+            raise PricingError(
+                code="INVALID_CONFIGURATION",
+                message="Configuration must be an object.",
+                status_code=400,
+            )
+
+        try:
+            normalized_width_cm = int(configuration.get("width_cm"))
+            normalized_height_cm = int(configuration.get("height_cm"))
+        except (TypeError, ValueError) as exc:
+            raise PricingError(
+                code="INVALID_CONFIGURATION",
+                message="Configuration width_cm and height_cm must be integers.",
+                status_code=400,
+            ) from exc
+
+        raw_options = configuration.get("options", [])
+        if raw_options is None:
+            raw_options = []
+
+        if not isinstance(raw_options, list):
+            raise PricingError(
+                code="INVALID_CONFIGURATION",
+                message="Configuration options must be an array.",
+                status_code=400,
+            )
+
+        normalized_options = []
+        seen = set()
+
+        for option in raw_options:
+            if not isinstance(option, dict):
+                raise PricingError(
+                    code="INVALID_OPTION",
+                    message="Each option must be an object.",
+                    status_code=400,
+                )
+
+            group_slug = str(option.get("group_slug", "")).strip()
+            option_slug = str(option.get("option_slug", "")).strip()
+
+            if not group_slug or not option_slug:
+                raise PricingError(
+                    code="INVALID_OPTION",
+                    message="Each option must include group_slug and option_slug.",
+                    status_code=400,
+                )
+
+            dedupe_key = (group_slug, option_slug)
+            if dedupe_key in seen:
+                continue
+
+            seen.add(dedupe_key)
+            normalized_options.append({
+                "group_slug": group_slug,
+                "option_slug": option_slug,
+            })
+
+        return {
+            "width_cm": normalized_width_cm,
+            "height_cm": normalized_height_cm,
+            "options": normalized_options,
+        }
+
+    @staticmethod
     def _get_product(product_id: int) -> Product:
-        product = Product.query.get(product_id)
+        product = (
+            Product.query
+            .options(
+                selectinload(Product.option_assignments)
+                .selectinload(ProductOptionAssignment.option)
+                .selectinload(ProductOption.group)
+            )
+            .get(product_id)
+        )
 
         if not product:
             raise PricingError(
@@ -107,6 +229,115 @@ class PricingService:
             )
 
         return product
+
+    @staticmethod
+    def _calculate_options_modifier(*, product: Product, options: list[dict]) -> Decimal:
+        if not options:
+            PricingService._validate_required_groups(product=product, selected_group_slugs=set())
+            return Decimal("0.00")
+
+        group_slugs = sorted({option["group_slug"] for option in options})
+        option_slugs = sorted({option["option_slug"] for option in options})
+
+        groups = OptionGroup.query.filter(OptionGroup.slug.in_(group_slugs)).all()
+        group_by_slug = {group.slug: group for group in groups}
+
+        product_options = (
+            ProductOption.query
+            .options(selectinload(ProductOption.group))
+            .filter(ProductOption.slug.in_(option_slugs))
+            .all()
+        )
+        product_options_by_slug = {option.slug: option for option in product_options}
+
+        allowed_options = {}
+        selected_groups = {}
+
+        for assignment in product.option_assignments:
+            option = assignment.option
+            group = option.group
+            allowed_options[(group.slug, option.slug)] = option
+
+        modifier_total = Decimal("0.00")
+
+        for selected_option in options:
+            group_slug = selected_option["group_slug"]
+            option_slug = selected_option["option_slug"]
+
+            matched_group = group_by_slug.get(group_slug)
+            if not matched_group:
+                raise PricingError(
+                    code="INVALID_OPTION_GROUP",
+                    message=f"Option group '{group_slug}' does not exist.",
+                    status_code=400,
+                )
+
+            matched_option = product_options_by_slug.get(option_slug)
+            if not matched_option:
+                raise PricingError(
+                    code="INVALID_OPTION",
+                    message=f"Option '{option_slug}' does not exist.",
+                    status_code=400,
+                )
+
+            if matched_option.group.slug != matched_group.slug:
+                raise PricingError(
+                    code="INVALID_OPTION_GROUP",
+                    message=(
+                        f"Option '{option_slug}' does not belong to "
+                        f"group '{group_slug}'."
+                    ),
+                    status_code=400,
+                )
+
+            matched_option = allowed_options.get((group_slug, option_slug))
+            if not matched_option:
+                raise PricingError(
+                    code="INVALID_OPTION",
+                    message=(
+                        f"Option '{option_slug}' in group '{group_slug}' "
+                        "is not valid for this product."
+                    ),
+                    status_code=400,
+                )
+
+            selected_groups.setdefault(group_slug, []).append(matched_option)
+            modifier_total += PricingService._to_money(matched_option.price_modifier or 0)
+
+        for group_slug, group_options in selected_groups.items():
+            group = group_options[0].group
+            if group.type == "single" and len(group_options) > 1:
+                raise PricingError(
+                    code="INVALID_OPTION_COMBINATION",
+                    message=f"Multiple options selected for group '{group_slug}'.",
+                    status_code=400,
+                )
+
+        PricingService._validate_required_groups(
+            product=product,
+            selected_group_slugs=set(selected_groups.keys()),
+        )
+
+        return PricingService._money(modifier_total)
+
+    @staticmethod
+    def _validate_required_groups(*, product: Product, selected_group_slugs: set[str]):
+        required_group_slugs = {
+            assignment.option.group.slug
+            for assignment in product.option_assignments
+            if assignment.option.group.is_required
+        }
+
+        missing_group_slugs = sorted(required_group_slugs - selected_group_slugs)
+        if missing_group_slugs:
+            raise PricingError(
+                code="MISSING_REQUIRED_OPTION",
+                message=(
+                    "Missing required option for group "
+                    f"'{missing_group_slugs[0]}'."
+                ),
+                status_code=400,
+            )
 
     @staticmethod
     def _validate_inputs(

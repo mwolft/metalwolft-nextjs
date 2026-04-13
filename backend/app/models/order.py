@@ -5,10 +5,18 @@ from app.extensions import db
 
 class Order(db.Model):
     __tablename__ = "orders"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id",
+            "idempotency_key",
+            name="uq_orders_user_idempotency_key",
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
 
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    idempotency_key = db.Column(db.String(64), nullable=True)
 
     status = db.Column(db.String(32), nullable=False, default="pending_payment")
     currency = db.Column(db.String(3), nullable=False, default="EUR")
@@ -70,11 +78,14 @@ class OrderItem(db.Model):
     height_cm = db.Column(db.Integer, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
 
+    configuration_snapshot = db.Column(db.JSON, nullable=True)
     options_snapshot = db.Column(db.JSON, nullable=False, default=list)
 
     unit_area_m2 = db.Column(db.Numeric(10, 4), nullable=False)
     unit_price_m2 = db.Column(db.Numeric(10, 2), nullable=False)
     unit_price_base = db.Column(db.Numeric(10, 2), nullable=False)
+    unit_options_modifier = db.Column(db.Numeric(10, 2), nullable=True)
+    unit_price = db.Column(db.Numeric(10, 2), nullable=True)
     unit_shipping_surcharge = db.Column(db.Numeric(10, 2), nullable=False)
 
     products_subtotal = db.Column(db.Numeric(10, 2), nullable=False)

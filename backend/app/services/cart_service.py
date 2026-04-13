@@ -1,3 +1,5 @@
+import hashlib
+import json
 import uuid
 from decimal import Decimal
 
@@ -17,6 +19,97 @@ class CartOwnershipError(Exception):
 
 
 class CartService:
+    @staticmethod
+    def _normalize_options(options) -> list[dict]:
+        if options is None:
+            options = []
+
+        if not isinstance(options, list):
+            raise ValueError("options must be an array.")
+
+        normalized_options = []
+        seen = set()
+
+        for option in options:
+            if not isinstance(option, dict):
+                raise ValueError("each option must be an object.")
+
+            group_slug = str(option.get("group_slug", "")).strip()
+            option_slug = str(option.get("option_slug", "")).strip()
+
+            if not group_slug or not option_slug:
+                raise ValueError("each option must include group_slug and option_slug.")
+
+            dedupe_key = (group_slug, option_slug)
+            if dedupe_key in seen:
+                continue
+
+            seen.add(dedupe_key)
+            normalized_options.append({
+                "group_slug": group_slug,
+                "option_slug": option_slug,
+            })
+
+        normalized_options.sort(key=lambda item: (item["group_slug"], item["option_slug"]))
+        return normalized_options
+
+    @staticmethod
+    def normalize_configuration(
+        *,
+        configuration: dict | None = None,
+        width_cm: int | None = None,
+        height_cm: int | None = None,
+    ) -> dict:
+        if configuration is None:
+            configuration = {
+                "width_cm": width_cm,
+                "height_cm": height_cm,
+                "options": [],
+            }
+
+        if not isinstance(configuration, dict):
+            raise ValueError("configuration must be an object.")
+
+        raw_width_cm = configuration.get("width_cm")
+        raw_height_cm = configuration.get("height_cm")
+        raw_options = configuration.get("options", [])
+
+        normalized_width_cm = int(raw_width_cm)
+        normalized_height_cm = int(raw_height_cm)
+
+        if normalized_width_cm <= 0:
+            raise ValueError("width_cm must be greater than 0.")
+
+        if normalized_height_cm <= 0:
+            raise ValueError("height_cm must be greater than 0.")
+
+        normalized_options = CartService._normalize_options(raw_options)
+
+        return {
+            "width_cm": normalized_width_cm,
+            "height_cm": normalized_height_cm,
+            "options": normalized_options,
+        }
+
+    @staticmethod
+    def generate_configuration_hash(
+        *,
+        configuration: dict | None = None,
+        width_cm: int | None = None,
+        height_cm: int | None = None,
+    ) -> str:
+        normalized_configuration = CartService.normalize_configuration(
+            configuration=configuration,
+            width_cm=width_cm,
+            height_cm=height_cm,
+        )
+        serialized_configuration = json.dumps(
+            normalized_configuration,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(serialized_configuration.encode("utf-8")).hexdigest()
+
     @staticmethod
     def get_or_create_cart(*, anonymous_id: str | None, user=None):
         if user:
@@ -58,22 +151,33 @@ class CartService:
         *,
         cart: Cart,
         product_id: int,
-        width_cm: int,
-        height_cm: int,
+        configuration: dict | None = None,
+        width_cm: int | None = None,
+        height_cm: int | None = None,
         quantity: int,
     ):
-        PricingService.quote(
-            product_id=product_id,
+        normalized_configuration = CartService.normalize_configuration(
+            configuration=configuration,
             width_cm=width_cm,
             height_cm=height_cm,
+        )
+        normalized_width_cm = normalized_configuration["width_cm"]
+        normalized_height_cm = normalized_configuration["height_cm"]
+        configuration_hash = CartService.generate_configuration_hash(
+            configuration=normalized_configuration
+        )
+
+        PricingService.quote(
+            product_id=product_id,
+            width_cm=normalized_width_cm,
+            height_cm=normalized_height_cm,
             quantity=quantity,
         )
 
         existing_item = CartItem.query.filter_by(
             cart_id=cart.id,
             product_id=product_id,
-            width_cm=width_cm,
-            height_cm=height_cm,
+            configuration_hash=configuration_hash,
         ).first()
 
         if existing_item:
@@ -84,8 +188,10 @@ class CartService:
         item = CartItem(
             cart_id=cart.id,
             product_id=product_id,
-            width_cm=width_cm,
-            height_cm=height_cm,
+            width_cm=normalized_width_cm,
+            height_cm=normalized_height_cm,
+            configuration=normalized_configuration,
+            configuration_hash=configuration_hash,
             quantity=quantity,
         )
         db.session.add(item)
@@ -138,8 +244,7 @@ class CartService:
             matching_item = CartItem.query.filter_by(
                 cart_id=user_cart.id,
                 product_id=anonymous_item.product_id,
-                width_cm=anonymous_item.width_cm,
-                height_cm=anonymous_item.height_cm,
+                configuration_hash=anonymous_item.configuration_hash,
             ).first()
 
             if matching_item:

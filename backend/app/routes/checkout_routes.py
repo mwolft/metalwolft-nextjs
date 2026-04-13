@@ -42,26 +42,19 @@ def confirm_checkout():
     data = request.get_json() or {}
     user = g.current_user
 
-    cart, _, _ = CartService.get_or_create_cart(
-        anonymous_id=None,
-        user=user,
-    )
-
-    checkout_data = data.get("checkout")
-
-    if not checkout_data:
+    if not data:
         return jsonify({
             "error": {
                 "code": "INVALID_PAYLOAD",
-                "message": "checkout snapshot is required.",
+                "message": "checkout confirmation payload is required.",
             }
         }), 400
 
     try:
         payload = CheckoutService.confirm_checkout(
             user=user,
-            cart=cart,
-            checkout_data=checkout_data,  # 👈 CAMBIO CLAVE
+            cart=None,
+            checkout_data=data,
         )
     except CheckoutError as exc:
         return jsonify({

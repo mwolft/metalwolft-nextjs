@@ -33,5 +33,6 @@ class Config:
     OVERSIZE_SUM_MAX_SURCHARGE = 99
 
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+    STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
     STRIPE_SUCCESS_URL = "http://localhost:3000/success"
     STRIPE_CANCEL_URL = "http://localhost:3000/cancel"

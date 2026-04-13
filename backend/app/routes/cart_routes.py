@@ -22,6 +22,16 @@ def _resolve_cart():
     )
 
 
+def _extract_configuration(data: dict):
+    if "configuration" in data and data.get("configuration") is not None:
+        return CartService.normalize_configuration(configuration=data.get("configuration"))
+
+    return CartService.normalize_configuration(
+        width_cm=int(data.get("width_cm")),
+        height_cm=int(data.get("height_cm")),
+    )
+
+
 def _cart_response():
     cart, anon_id, cart_type = _resolve_cart()
     payload = CartService.serialize_cart(cart=cart, cart_type=cart_type)
@@ -49,25 +59,25 @@ def add_cart_item():
     cart, anon_id, cart_type = _resolve_cart()
 
     try:
+        configuration = _extract_configuration(data)
         CartService.add_item(
             cart=cart,
             product_id=int(data.get("product_id")),
-            width_cm=int(data.get("width_cm")),
-            height_cm=int(data.get("height_cm")),
+            configuration=configuration,
             quantity=int(data.get("quantity", 1)),
         )
     except TypeError:
         return jsonify({
             "error": {
                 "code": "INVALID_PAYLOAD",
-                "message": "product_id, width_cm and height_cm are required.",
+                "message": "product_id and a valid configuration are required.",
             }
         }), 400
     except ValueError:
         return jsonify({
             "error": {
                 "code": "INVALID_PAYLOAD",
-                "message": "product_id, width_cm, height_cm and quantity must be integers.",
+                "message": "product_id, quantity and configuration dimensions must be valid integers.",
             }
         }), 400
     except PricingError as exc:
@@ -223,11 +233,11 @@ def add_to_cart():
     )
 
     try:
+        configuration = _extract_configuration(data)
         item = CartService.add_item(
             cart=cart,
             product_id=int(data.get("product_id")),
-            width_cm=int(data.get("width_cm")),
-            height_cm=int(data.get("height_cm")),
+            configuration=configuration,
             quantity=int(data.get("quantity")),
         )
     except PricingError as exc:

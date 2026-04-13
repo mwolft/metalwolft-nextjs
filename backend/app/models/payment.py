@@ -10,11 +10,12 @@ class Payment(db.Model):
 
     order_id = db.Column(db.Integer, db.ForeignKey("orders.id"), nullable=False, index=True)
 
-    method = db.Column(db.String(32), nullable=False)
-    status = db.Column(db.String(32), nullable=False, default="pending")
     provider = db.Column(db.String(32), nullable=False)
-    provider_reference = db.Column(db.String(255), nullable=True, index=True)
+    status = db.Column(db.String(32), nullable=False, default="pending")
     amount = db.Column(db.Numeric(10, 2), nullable=False)
+    currency = db.Column(db.String(3), nullable=False, default="EUR")
+    external_id = db.Column(db.String(255), nullable=True)
+    idempotency_key = db.Column(db.String(64), nullable=False, index=True)
 
     created_at = db.Column(
         db.DateTime(timezone=True),

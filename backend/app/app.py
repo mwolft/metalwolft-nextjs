@@ -10,7 +10,7 @@ from app.routes.cart_routes import cart_bp
 from app.routes.google_auth_routes import google_auth_bp
 from app.routes.pricing_routes import pricing_bp
 from app.routes.checkout_routes import checkout_bp
-from app.routes.payment_routes import orders_bp, payments_bp
+from app.routes.payment_routes import orders_bp, payments_bp, webhooks_bp
 
 from app.admin import (
     CartAdmin,
@@ -79,6 +79,7 @@ def create_app():
     app.register_blueprint(checkout_bp)
     app.register_blueprint(payments_bp)
     app.register_blueprint(orders_bp)
+    app.register_blueprint(webhooks_bp)
     
 
 

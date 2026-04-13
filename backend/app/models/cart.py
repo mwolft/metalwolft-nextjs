@@ -44,6 +44,8 @@ class CartItem(db.Model):
 
     width_cm = db.Column(db.Integer, nullable=False)
     height_cm = db.Column(db.Integer, nullable=False)
+    configuration = db.Column(db.JSON, nullable=True)
+    configuration_hash = db.Column(db.String(64), nullable=True, index=True)
     quantity = db.Column(db.Integer, nullable=False, default=1)
 
     created_at = db.Column(
