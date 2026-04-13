@@ -133,21 +133,16 @@ class OrderItemAdmin(ModelView):
 
 
 class PaymentAdmin(ModelView):
-    column_list = ("id", "order_id", "method", "status", "amount", "created_at")
-    column_filters = ("method", "status", "provider", "created_at")
-    column_searchable_list = ("order_id", "provider_reference")
+    column_list = ("id", "order_id", "provider", "status", "amount", "created_at")
+    column_filters = ("provider", "status", "created_at")
+    column_searchable_list = ("order_id", "external_id")
     column_default_sort = ("created_at", True)
     can_create = False
     can_edit = False
     can_delete = False
     can_view_details = True
     column_labels = {
-        "id": "ID",
-        "order_id": "Pedido",
-        "method": "Metodo",
-        "status": "Estado",
-        "amount": "Importe",
-        "created_at": "Fecha",
+        "provider": "Proveedor",
     }
 
 
