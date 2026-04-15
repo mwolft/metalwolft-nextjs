@@ -3,7 +3,7 @@ from .config import Config
 from .extensions import init_extensions
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_admin import Admin
-from app.routes.product_routes import products_bp   
+from app.routes.product_routes import categories_bp, products_bp   
 from app.routes.auth_routes import auth_bp
 from app.routes.profile_routes import profile_bp
 from app.routes.cart_routes import cart_bp
@@ -15,16 +15,18 @@ from app.routes.payment_routes import orders_bp, payments_bp, webhooks_bp
 from app.admin import (
     CartAdmin,
     CartItemAdmin,
+    CategoryAdmin,
     OrderAdmin,
     PaymentAdmin,
     ProductAdmin,
+    ProductImageAdmin,
     UserAdmin,
     OrderItemAdmin,
 )
 from app.models.cart import Cart, CartItem
 from app.models.order import Order
 from app.models.payment import Payment
-from app.models.product import Product
+from app.models.product import Category, Product, ProductImage
 from app.models.user import User
 from app.models.order import OrderItem
 from app.extensions import db
@@ -63,7 +65,9 @@ def create_app():
     admin = Admin(app, name="MetalWolft Admin", url="/admin")
 
     admin.add_view(UserAdmin(User, db.session))
+    admin.add_view(CategoryAdmin(Category, db.session))
     admin.add_view(ProductAdmin(Product, db.session))
+    admin.add_view(ProductImageAdmin(ProductImage, db.session))
     admin.add_view(OrderAdmin(Order, db.session))
     admin.add_view(PaymentAdmin(Payment, db.session))
     admin.add_view(CartAdmin(Cart, db.session))
@@ -71,6 +75,7 @@ def create_app():
     admin.add_view(OrderItemAdmin(OrderItem, db.session))
 
     app.register_blueprint(products_bp)
+    app.register_blueprint(categories_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(cart_bp)

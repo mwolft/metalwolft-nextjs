@@ -1,4 +1,5 @@
 from app.extensions import db
+from datetime import datetime, timezone
 
 
 class Category(db.Model):
@@ -10,6 +11,11 @@ class Category(db.Model):
     slug = db.Column(db.String(120), unique=True, nullable=False)
 
     parent_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
 
     # SEO
     seo_title = db.Column(db.String(180))
@@ -29,6 +35,30 @@ class Category(db.Model):
     def __repr__(self):
         return f"<Category {self.id} {self.slug}>"
 
+    def serialize_public_summary(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "slug": self.slug,
+        }
+
+    def serialize_public(self):
+        active_children = [child for child in self.children if child.is_active]
+
+        return {
+            "id": self.id,
+            "name": self.name,
+            "slug": self.slug,
+            "description": self.description,
+            "image_url": self.image_url,
+            "parent": (
+                self.parent.serialize_public_summary()
+                if self.parent and self.parent.is_active
+                else None
+            ),
+            "children_count": len(active_children),
+        }
+
 
 class Product(db.Model):
     __tablename__ = "products"
@@ -40,7 +70,7 @@ class Product(db.Model):
     name = db.Column(db.String(120), nullable=False)
 
     # relación SEO
-    category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=True)
     category = db.relationship("Category", backref="products")
 
     # contenido
@@ -78,6 +108,55 @@ class Product(db.Model):
 
     def __repr__(self):
         return f"<Product {self.id} {self.slug}>"
+
+    def _get_public_image(self):
+        if self.main_image:
+            return self.main_image
+
+        ordered_images = sorted(
+            self.images,
+            key=lambda image: (image.position, image.id or 0)
+        )
+        main_product_image = next(
+            (image for image in ordered_images if image.is_main),
+            None
+        )
+
+        if main_product_image:
+            return main_product_image.url
+
+        if ordered_images:
+            return ordered_images[0].url
+
+        return None
+
+    def serialize_public(self, *, include_content=False):
+        payload = {
+            "id": self.id,
+            "slug": self.slug,
+            "name": self.name,
+            "description": self.description,
+            "category": (
+                self.category.serialize_public_summary()
+                if self.category and self.category.is_active
+                else None
+            ),
+            "image": self._get_public_image(),
+            "flags": {
+                "featured": self.is_featured,
+                "new": self.is_new,
+            },
+            "seo": {
+                "title": self.seo_title,
+                "description": self.seo_description,
+                "h1": self.seo_h1,
+            },
+        }
+
+        if include_content:
+            payload["content"] = self.content
+
+        return payload
 
 
 class OptionGroup(db.Model):
@@ -131,3 +210,28 @@ class ProductOptionAssignment(db.Model):
 
     def __repr__(self):
         return f"<ProductOptionAssignment p={self.product_id} o={self.option_id}>"
+
+
+class ProductImage(db.Model):
+    __tablename__ = "product_images"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False, index=True)
+    url = db.Column(db.String(255), nullable=False)
+    public_id = db.Column(db.String(255), nullable=False)
+    alt_text = db.Column(db.String(255), nullable=True)
+    position = db.Column(db.Integer, default=0)
+    is_main = db.Column(db.Boolean, default=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    product = db.relationship(
+        "Product",
+        backref=db.backref("images", order_by="ProductImage.position", lazy="selectin")
+    )
+
+    def __repr__(self):
+        return f"<ProductImage {self.id} p={self.product_id}>"

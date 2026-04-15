@@ -6,6 +6,11 @@ products_bp = Blueprint(
     __name__,
     url_prefix="/api/products"
 )
+categories_bp = Blueprint(
+    "categories",
+    __name__,
+    url_prefix="/api/categories"
+)
 
 
 @products_bp.route("/", methods=["GET"])
@@ -18,7 +23,7 @@ def get_products():
     products = ProductService.get_public_products(category=category)
 
     return jsonify([
-        product.serialize() for product in products
+        product.serialize_public() for product in products
     ])
 
 
@@ -32,4 +37,16 @@ def get_product(slug):
     if not product:
         return jsonify({"error": "Product not found"}), 404
 
-    return jsonify(product.serialize())
+    return jsonify(product.serialize_public(include_content=True))
+
+
+@categories_bp.route("/", methods=["GET"])
+def get_categories():
+    """
+    Lista pública de categorías activas raíz.
+    """
+    categories = ProductService.get_public_root_categories()
+
+    return jsonify([
+        category.serialize_public() for category in categories
+    ])

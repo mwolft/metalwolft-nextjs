@@ -1,20 +1,10 @@
-type Product = {
-  id: number
-  slug: string
-  name: string
-  category: string
-  description: string | null
-  image: string | null
-  flags: {
-    featured: boolean
-    new: boolean
-  }
-}
+import { getApiUrl } from "@/lib/api"
+import type { CatalogProduct } from "@/lib/catalog"
 
-async function getProducts(): Promise<Product[]> {
-const res = await fetch("http://localhost:3001/api/products/", {
-  cache: "no-store",
-})
+async function getProducts(): Promise<CatalogProduct[]> {
+  const res = await fetch(getApiUrl("/api/products/"), {
+    cache: "no-store",
+  })
 
 
   if (!res.ok) {

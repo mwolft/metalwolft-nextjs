@@ -1,25 +1,13 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
-
-type Product = {
-  id: number
-  slug: string
-  name: string
-  category: string
-  description: string | null
-  content: string
-  seo?: {
-    title: string | null
-    description: string | null
-    h1: string | null
-  }
-}
+import { getApiUrl } from "@/lib/api"
+import type { CatalogProduct } from "@/lib/catalog"
 
 /* ---------- Fetch ---------- */
 
-async function getProduct(slug: string): Promise<Product | null> {
+async function getProduct(slug: string): Promise<CatalogProduct | null> {
   const res = await fetch(
-    `http://localhost:3001/api/products/${slug}`,
+    getApiUrl(`/api/products/${slug}`),
     { cache: "no-store" }
   )
 
@@ -74,7 +62,7 @@ export default async function ProductoPage({
       {product.description && <p>{product.description}</p>}
 
       <article
-        dangerouslySetInnerHTML={{ __html: product.content }}
+        dangerouslySetInnerHTML={{ __html: product.content ?? "" }}
       />
     </main>
   )

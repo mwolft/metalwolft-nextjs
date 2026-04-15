@@ -1,10 +1,63 @@
 from flask_admin.contrib.sqla import ModelView
+from markupsafe import Markup
+from wtforms import FileField
 from app.models.cart import Cart, CartItem
 from app.extensions import db
 from app.models.order import Order
 from app.models.payment import Payment
-from app.models.product import Product
+from app.models.product import Category, Product, ProductImage
 from app.models.user import User
+from app.utils.cloudinary_service import delete_image, upload_image
+
+
+def _ensure_single_main_product_image(*, product_id: int):
+    if not product_id:
+        return
+
+    ordered_images = (
+        ProductImage.query
+        .filter_by(product_id=product_id)
+        .order_by(ProductImage.position.asc(), ProductImage.id.asc())
+        .all()
+    )
+
+    if not ordered_images:
+        return
+
+    main_images = [image for image in ordered_images if image.is_main]
+    canonical_main = main_images[0] if main_images else ordered_images[0]
+
+    for image in ordered_images:
+        image.is_main = image.id == canonical_main.id
+
+
+def _validate_product_image(model):
+    if model.url and not model.public_id:
+        raise ValueError("public_id is required when url is set.")
+
+
+def _render_image_preview(url):
+    if not url:
+        return "-"
+
+    return Markup(f'<img src="{url}" style="height:50px;" alt="preview">')
+
+
+def _populate_product_image_from_upload(form, model):
+    uploaded_file = getattr(form, "file", None)
+    file_data = getattr(uploaded_file, "data", None)
+
+    if not file_data or not getattr(file_data, "filename", None):
+        return
+
+    old_public_id = model.public_id
+    folder = f"metalwolft/products/{model.product_id or 'unassigned'}"
+    upload_result = upload_image(file_data, folder=folder)
+    model.url = upload_result["url"]
+    model.public_id = upload_result["public_id"]
+
+    if old_public_id and old_public_id != model.public_id:
+        delete_image(old_public_id)
 
 
 class UserAdmin(ModelView):
@@ -14,6 +67,13 @@ class UserAdmin(ModelView):
     can_create = False
     can_edit = False
     can_delete = False
+
+
+class CategoryAdmin(ModelView):
+    column_list = ("id", "name", "slug", "parent", "is_active", "created_at")
+    column_filters = ("is_active", "created_at")
+    column_searchable_list = ("name", "slug")
+    form_columns = ("name", "slug", "parent", "is_active")
 
 
 class ProductAdmin(ModelView):
@@ -28,9 +88,20 @@ class ProductAdmin(ModelView):
     )
     column_filters = ("category", "is_active", "is_featured", "is_new")
     column_searchable_list = ("name", "slug")
+    inline_models = [(
+        ProductImage,
+        dict(
+            form_columns=("url", "public_id", "alt_text", "position", "is_main"),
+            column_list=("preview", "url", "public_id", "position", "is_main"),
+            column_formatters={
+                "preview": lambda _v, _c, model, _p: _render_image_preview(model.url),
+            },
+        )
+    )]
     form_columns = (
         "slug",
         "name",
+        "category_id",
         "category",
         "description",
         "content",
@@ -69,6 +140,63 @@ class ProductAdmin(ModelView):
         "updated_at": "Actualizado",
     }
     column_default_sort = ("created_at", True)
+
+    def on_model_change(self, form, model, is_created):
+        for image in getattr(model, "images", []) or []:
+            _validate_product_image(image)
+        super().on_model_change(form, model, is_created)
+
+    def after_model_change(self, form, model, is_created):
+        _ensure_single_main_product_image(product_id=model.id)
+        super().after_model_change(form, model, is_created)
+
+
+class ProductImageAdmin(ModelView):
+    form_extra_fields = {
+        "file": FileField("file"),
+    }
+    column_list = (
+        "id",
+        "product_id",
+        "preview",
+        "url",
+        "is_main",
+        "position",
+        "created_at",
+    )
+    column_filters = ("is_main", "created_at")
+    column_searchable_list = ("product_id", "url")
+    form_columns = (
+        "product",
+        "file",
+        "url",
+        "public_id",
+        "alt_text",
+        "position",
+        "is_main",
+    )
+    column_default_sort = ("position", False)
+    column_formatters = {
+        "preview": lambda _v, _c, model, _p: _render_image_preview(model.url),
+    }
+
+    def on_model_change(self, form, model, is_created):
+        _populate_product_image_from_upload(form, model)
+        _validate_product_image(model)
+        super().on_model_change(form, model, is_created)
+
+    def after_model_change(self, form, model, is_created):
+        _ensure_single_main_product_image(product_id=model.product_id)
+        super().after_model_change(form, model, is_created)
+
+    def delete_model(self, model):
+        public_id = model.public_id
+        was_deleted = super().delete_model(model)
+
+        if was_deleted and public_id:
+            delete_image(public_id)
+
+        return was_deleted
 
 
 class OrderAdmin(ModelView):

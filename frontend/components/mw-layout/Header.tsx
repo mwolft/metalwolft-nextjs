@@ -10,9 +10,8 @@ export default function Header() {
         </Link>
 
         <nav className={styles.nav}>
-          <Link href="/rejas-para-ventanas/fijas">Fijas</Link>
-          <Link href="/rejas-para-ventanas/abatibles">Abatibles</Link>
-          <Link href="/rejas-para-ventanas/correderas">Correderas</Link>
+          <Link href="/">Categorías</Link>
+          <Link href="/productos">Productos</Link>
         </nav>
 
         <Link href="/carrito" className={styles.cart}>

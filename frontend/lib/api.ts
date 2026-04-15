@@ -1,9 +1,12 @@
 import { cookies } from "next/headers";
 
 export const API_URL =
-  process.env.API_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:3001";
+
+export function getApiUrl(path: string) {
+  return `${API_URL}${path}`;
+}
 
 type FetchOptions = RequestInit & {
   retry?: boolean;
@@ -15,7 +18,7 @@ export async function apiFetch(
 ) {
   const cookieStore = cookies();
 
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(getApiUrl(path), {
     ...options,
     headers: {
       ...(options.headers || {}),
@@ -31,7 +34,7 @@ export async function apiFetch(
   }
 
   // Intentamos refresh una sola vez
-  const refreshRes = await fetch(`${API_URL}/api/auth/refresh`, {
+  const refreshRes = await fetch(getApiUrl("/api/auth/refresh"), {
     method: "POST",
     headers: {
       cookie: cookieStore.toString(),

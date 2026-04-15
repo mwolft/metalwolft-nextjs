@@ -1,5 +1,6 @@
-from app.models.product import Product
-from app.extensions import db
+from sqlalchemy.orm import selectinload
+
+from app.models.product import Category, Product
 
 
 class ProductService:
@@ -13,10 +14,20 @@ class ProductService:
         Devuelve productos activos y públicos.
         Opcionalmente filtrados por categoría.
         """
-        query = Product.query.filter_by(is_active=True)
+        query = (
+            Product.query
+            .options(
+                selectinload(Product.category),
+                selectinload(Product.images),
+            )
+            .filter(Product.is_active.is_(True))
+        )
 
         if category:
-            query = query.filter(Product.category == category)
+            query = query.join(Product.category).filter(
+                Category.slug == category,
+                Category.is_active.is_(True),
+            )
 
         return (
             query
@@ -32,7 +43,31 @@ class ProductService:
         """
         Devuelve un producto activo por slug o None.
         """
-        return Product.query.filter_by(
-            slug=slug,
-            is_active=True
-        ).first()
+        return (
+            Product.query
+            .options(
+                selectinload(Product.category),
+                selectinload(Product.images),
+            )
+            .filter_by(
+                slug=slug,
+                is_active=True
+            )
+            .first()
+        )
+
+    @staticmethod
+    def get_public_root_categories():
+        return (
+            Category.query
+            .options(
+                selectinload(Category.children),
+                selectinload(Category.parent),
+            )
+            .filter(
+                Category.is_active.is_(True),
+                Category.parent_id.is_(None),
+            )
+            .order_by(Category.name.asc())
+            .all()
+        )

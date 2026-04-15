@@ -9,8 +9,8 @@ export default function Footer() {
         <p>Rejas para ventanas a medida · Fabricado en España</p>
 
         <nav className={styles.nav}>
-          <Link href="/rejas-para-ventanas/fijas">Rejas fijas</Link>
-          <Link href="/rejas-para-ventanas/abatibles">Rejas abatibles</Link>
+          <Link href="/">Categorías</Link>
+          <Link href="/productos">Productos</Link>
           <Link href="/blog">Blog</Link>
         </nav>
       </div>
