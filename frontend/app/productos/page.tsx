@@ -24,6 +24,19 @@ export default async function ProductosPage() {
       <ul>
         {products.map((product) => (
           <li key={product.id}>
+            {product.image ? (
+              <img
+                alt={product.name}
+                src={product.image}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  maxWidth: "320px",
+                  height: "auto",
+                  marginBottom: "1rem",
+                }}
+              />
+            ) : null}
             <a href={`/productos/${product.slug}`}>
               <strong>{product.name}</strong>
             </a>

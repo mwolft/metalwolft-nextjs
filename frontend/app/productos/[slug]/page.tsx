@@ -57,6 +57,20 @@ export default async function ProductoPage({
 
   return (
     <main>
+      {product.image ? (
+        <img
+          alt={product.name}
+          src={product.image}
+          style={{
+            display: "block",
+            width: "100%",
+            maxWidth: "640px",
+            height: "auto",
+            marginBottom: "1.5rem",
+          }}
+        />
+      ) : null}
+
       <h1>{product.seo?.h1 || product.name}</h1>
 
       {product.description && <p>{product.description}</p>}
