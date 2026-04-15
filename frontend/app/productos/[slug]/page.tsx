@@ -1,5 +1,7 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
+
+import AddToCartForm from "@/components/checkout/AddToCartForm"
 import { getApiUrl } from "@/lib/api"
 import type { CatalogProduct } from "@/lib/catalog"
 
@@ -74,6 +76,8 @@ export default async function ProductoPage({
       <h1>{product.seo?.h1 || product.name}</h1>
 
       {product.description && <p>{product.description}</p>}
+
+      <AddToCartForm productId={product.id} />
 
       <article
         dangerouslySetInnerHTML={{ __html: product.content ?? "" }}
