@@ -40,11 +40,7 @@ def create_app():
         supports_credentials=True,
         resources={
             r"/api/*": {
-                "origins": [
-                    "https://literate-tribble-5gv75j7gv5q42vvgg-3000.app.github.dev",
-                    "http://localhost:3000",
-                    "http://127.0.0.1:3000"
-                ]
+                "origins": Config.CORS_ALLOWED_ORIGINS
             }
         }
     )

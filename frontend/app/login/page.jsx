@@ -1,19 +1,52 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { GoogleLogin } from "@react-oauth/google";
 
 
 export default function LoginPage() {
-    const router = useRouter();
+    const searchParams = useSearchParams();
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [sessionChecked, setSessionChecked] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const redirectTargetRef = useRef(null);
+
+    const getSafeNextPath = () => {
+        const rawNext = searchParams.get("next");
+        return rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
+            ? rawNext
+            : "/";
+    };
+
+    const redirectToResolvedNext = (reason) => {
+        const destination = getSafeNextPath();
+
+        console.info("[Login] Raw next at redirect time:", searchParams.get("next"));
+        if (redirectTargetRef.current === destination) return;
+        redirectTargetRef.current = destination;
+
+        console.info("[Login] Redirecting.", {
+            branch: reason,
+            destination,
+        });
+
+        window.location.assign(destination);
+    };
 
     useEffect(() => {
+        const requestedNext = searchParams.get("next");
+
+        console.info("[Login] Google client ID:", googleClientId ?? "undefined");
+        console.info("[Login] Current URL:", window.location.href);
+        console.info("[Login] Raw next param:", requestedNext);
+        console.info("[Login] Resolved nextPath:", getSafeNextPath());
+
         const checkSession = async () => {
             try {
                 const res = await fetch(
@@ -23,17 +56,28 @@ export default function LoginPage() {
                     }
                 );
 
-                if (res.ok) {
-                    // Ya hay sesión → fuera del login
-                    router.replace("/");
+                if (res.status === 401) {
+                    console.info("[Login] No active session. Showing login screen.");
+                    setSessionChecked(true);
+                    return;
                 }
+
+                if (res.ok) {
+                    setIsAuthenticated(true);
+                    setSessionChecked(true);
+                    redirectToResolvedNext("active-session");
+                    return;
+                }
+
+                setSessionChecked(true);
             } catch (e) {
-                // Silencioso: si falla, mostramos el login normal
+                console.warn("[Login] Session check failed.", e);
+                setSessionChecked(true);
             }
         };
 
         checkSession();
-    }, [router]);
+    }, [googleClientId, searchParams]);
 
 
     const handleSubmit = async (e) => {
@@ -49,7 +93,7 @@ export default function LoginPage() {
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    credentials: "include", // MUY IMPORTANTE (cookies)
+                    credentials: "include",
                     body: JSON.stringify({ email, password }),
                 }
             );
@@ -59,8 +103,7 @@ export default function LoginPage() {
                 throw new Error(data.message || "Error al iniciar sesión");
             }
 
-            // Login correcto → el backend ya ha puesto las cookies
-            router.push("/");
+            redirectToResolvedNext("email-login");
         } catch (err) {
             setError(err.message);
         } finally {
@@ -68,40 +111,79 @@ export default function LoginPage() {
         }
     };
 
+    if (!sessionChecked) {
+        return (
+            <div style={styles.wrapper}>
+                <div style={styles.card}>
+                    <h1 style={styles.title}>Accede a tu cuenta</h1>
+                    <p>Comprobando sesión...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isAuthenticated) {
+        return (
+            <div style={styles.wrapper}>
+                <div style={styles.card}>
+                    <h1 style={styles.title}>Accede a tu cuenta</h1>
+                    <p>Sesión detectada. Redirigiendo...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div style={styles.wrapper}>
             <div style={styles.card}>
                 <h1 style={styles.title}>Accede a tu cuenta</h1>
 
-                <GoogleLogin
-                    onSuccess={async (credentialResponse) => {
-                        try {
-                            const res = await fetch(
-                                `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google`,
-                                {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    credentials: "include",
-                                    body: JSON.stringify({
-                                        token: credentialResponse.credential,
-                                    }),
+                {googleClientId ? (
+                    <GoogleLogin
+                        onSuccess={async (credentialResponse) => {
+                            try {
+                                console.info("[Login] GoogleLogin onSuccess fired.", {
+                                    hasCredential: Boolean(credentialResponse.credential),
+                                });
+
+                                if (!credentialResponse.credential) {
+                                    throw new Error("Missing Google credential");
                                 }
-                            );
 
-                            if (!res.ok) {
-                                throw new Error("Google login failed");
+                                console.info("[Login] Posting Google credential to backend.");
+                                const res = await fetch(
+                                    `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google`,
+                                    {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        credentials: "include",
+                                        body: JSON.stringify({
+                                            token: credentialResponse.credential,
+                                        }),
+                                    }
+                                );
+
+                                console.info("[Login] Backend Google auth response.", {
+                                    status: res.status,
+                                    ok: res.ok,
+                                });
+
+                                if (!res.ok) {
+                                    throw new Error("Google login failed");
+                                }
+
+                                redirectToResolvedNext("google-login");
+                            } catch (err) {
+                                console.warn("[Login] Google login flow failed.", err);
+                                setError("Error al iniciar sesión con Google");
                             }
-
-                            router.push("/");
-                        } catch (err) {
+                        }}
+                        onError={() => {
+                            console.warn("[Login] GoogleLogin onError fired before backend POST.");
                             setError("Error al iniciar sesión con Google");
-                        }
-                    }}
-                    onError={() => {
-                        setError("Error al iniciar sesión con Google");
-                    }}
-                />
-
+                        }}
+                    />
+                ) : null}
 
                 <div style={styles.separator}>— o —</div>
 
@@ -148,8 +230,6 @@ export default function LoginPage() {
         </div>
     );
 }
-
-/* === estilos inline simples (luego los pasamos a CSS/Tailwind) === */
 
 const styles = {
     wrapper: {

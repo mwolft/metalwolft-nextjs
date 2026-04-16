@@ -6,7 +6,6 @@ export function middleware(request: NextRequest) {
 
   const isPrivate =
     pathname.startsWith("/profile") ||
-    pathname.startsWith("/checkout") ||
     pathname.startsWith("/pedidos");
 
   if (!isPrivate) {
@@ -17,9 +16,13 @@ export function middleware(request: NextRequest) {
   const hasAccessToken = request.cookies.has("access_token");
 
   if (!hasAccessToken) {
-    return NextResponse.redirect(
-      new URL("/login", request.url)
-    );
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", pathname);
+    console.info("[Middleware] Redirecting unauthenticated user to login.", {
+      from: pathname,
+      to: loginUrl.toString(),
+    });
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();

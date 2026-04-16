@@ -24,14 +24,25 @@ export default function RootLayout({
 }: {
   children: ReactNode;
 }) {
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const content = (
+    <>
+      <Header />
+      <main>{children}</main>
+      <Footer />
+    </>
+  );
+
   return (
     <html lang="es">
       <body>
-        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
-          <Header />
-          <main>{children}</main>
-          <Footer />
-        </GoogleOAuthProvider>
+        {googleClientId ? (
+          <GoogleOAuthProvider clientId={googleClientId}>
+            {content}
+          </GoogleOAuthProvider>
+        ) : (
+          content
+        )}
       </body>
     </html>
   );

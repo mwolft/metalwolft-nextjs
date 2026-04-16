@@ -124,8 +124,9 @@ export default function CartClient({
                 <input
                   className="w-28 rounded-xl border border-neutral-300 px-3 py-2"
                   defaultValue={item.configuration.quantity}
+                  disabled={loadingItemId === item.id}
                   min={1}
-                  onBlur={(event) => {
+                  onChange={(event) => {
                     const value = Number(event.target.value);
                     if (value >= 1 && value !== item.configuration.quantity) {
                       void updateQuantity(item.id, value);

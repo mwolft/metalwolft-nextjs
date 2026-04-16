@@ -37,6 +37,12 @@ class Config:
     STRIPE_SUCCESS_URL = "http://localhost:3000/success"
     STRIPE_CANCEL_URL = "http://localhost:3000/cancel"
 
+    CORS_ALLOWED_ORIGINS = [
+        r"https://.*-3000\.app\.github\.dev",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
     CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
     CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
     CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
