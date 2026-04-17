@@ -1,4 +1,4 @@
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, current_app, g, jsonify, request
 
 from app.services.cart_service import CartService
 from app.services.checkout_service import CheckoutError, CheckoutService
@@ -63,5 +63,13 @@ def confirm_checkout():
                 "message": exc.message,
             }
         }), exc.status_code
+    except Exception:
+        current_app.logger.exception("checkout_confirm_failed")
+        return jsonify({
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Unexpected error while confirming checkout.",
+            }
+        }), 500
 
     return jsonify(payload), 201

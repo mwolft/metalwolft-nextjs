@@ -34,8 +34,14 @@ class Config:
 
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
     STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
-    STRIPE_SUCCESS_URL = "http://localhost:3000/success"
-    STRIPE_CANCEL_URL = "http://localhost:3000/cancel"
+    STRIPE_SUCCESS_URL = os.getenv(
+        "STRIPE_SUCCESS_URL",
+        "https://animated-tribble-v6pjw9j6pp4rhwwrg-3000.app.github.dev/checkout/success",
+    )
+    STRIPE_CANCEL_URL = os.getenv(
+        "STRIPE_CANCEL_URL",
+        "https://animated-tribble-v6pjw9j6pp4rhwwrg-3000.app.github.dev/checkout/cancel",
+    )
 
     CORS_ALLOWED_ORIGINS = [
         r"https://.*-3000\.app\.github\.dev",

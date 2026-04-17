@@ -159,6 +159,17 @@ class CheckoutService:
                     "shipping_surcharge": str(order.shipping_surcharge),
                     "total": str(order.total),
                 },
+                "payments": [
+                    {
+                        "id": payment.id,
+                        "provider": payment.provider,
+                        "status": payment.status,
+                        "amount": str(payment.amount),
+                        "currency": payment.currency,
+                        "external_id": payment.external_id,
+                    }
+                    for payment in order.payments
+                ],
                 "items": [
                     {
                         "id": item.id,
@@ -197,49 +208,49 @@ class CheckoutService:
         idempotency_key = checkout_input["idempotency_key"]
 
         try:
-            with db.session.begin():
-                locked_cart = CheckoutService._get_locked_cart_for_user(user_id=user.id)
+            locked_cart = CheckoutService._get_locked_cart_for_user(user_id=user.id)
 
-                existing_order = OrderService.get_order_by_idempotency_key(
-                    user_id=user.id,
-                    idempotency_key=idempotency_key,
-                )
-                if existing_order:
-                    return {
-                        "order_id": existing_order.id,
-                        "status": existing_order.status,
-                    }
+            existing_order = OrderService.get_order_by_idempotency_key(
+                user_id=user.id,
+                idempotency_key=idempotency_key,
+            )
+            if existing_order:
+                return {
+                    "order_id": existing_order.id,
+                    "status": existing_order.status,
+                }
 
-                if not locked_cart or not locked_cart.items:
-                    raise CheckoutError(
-                        code="EMPTY_CART",
-                        message="Cart is empty.",
-                        status_code=400,
-                    )
-
-                cart_snapshot = CheckoutService._build_cart_snapshot_from_cart(
-                    cart=locked_cart,
+            if not locked_cart or not locked_cart.items:
+                raise CheckoutError(
+                    code="EMPTY_CART",
+                    message="Cart is empty.",
+                    status_code=400,
                 )
 
-                order = OrderService.create_order_from_snapshot(
-                    user=user,
-                    checkout_input=checkout_input,
-                    cart_snapshot=cart_snapshot,
-                    idempotency_key=idempotency_key,
-                )
+            cart_snapshot = CheckoutService._build_cart_snapshot_from_cart(
+                cart=locked_cart,
+            )
 
-                OrderService.create_order_items_from_snapshot(
-                    order=order,
-                    cart_snapshot=cart_snapshot,
-                )
+            order = OrderService.create_order_from_snapshot(
+                user=user,
+                checkout_input=checkout_input,
+                cart_snapshot=cart_snapshot,
+                idempotency_key=idempotency_key,
+            )
 
-                (
-                    db.session.query(CartItem)
-                    .filter_by(cart_id=locked_cart.id)
-                    .delete(synchronize_session=False)
-                )
+            OrderService.create_order_items_from_snapshot(
+                order=order,
+                cart_snapshot=cart_snapshot,
+            )
 
-                db.session.flush()
+            (
+                db.session.query(CartItem)
+                .filter_by(cart_id=locked_cart.id)
+                .delete(synchronize_session=False)
+            )
+
+            db.session.flush()
+            db.session.commit()
         except IntegrityError:
             db.session.rollback()
             existing_order = OrderService.get_order_by_idempotency_key(
@@ -251,6 +262,9 @@ class CheckoutService:
                     "order_id": existing_order.id,
                     "status": existing_order.status,
                 }
+            raise
+        except Exception:
+            db.session.rollback()
             raise
 
         return {

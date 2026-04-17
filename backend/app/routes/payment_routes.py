@@ -1,8 +1,11 @@
 from flask import Blueprint, g, jsonify, request
+import logging
 
 from app.services.checkout_service import CheckoutService
 from app.services.payment_service import PaymentError, PaymentService
 from app.utils.auth import login_required
+
+logger = logging.getLogger(__name__)
 
 
 payments_bp = Blueprint("payments", __name__, url_prefix="/api/payments")
@@ -15,6 +18,7 @@ webhooks_bp = Blueprint("webhooks", __name__, url_prefix="/webhooks")
 def create_payment():
     data = request.get_json() or {}
     order_id = data.get("order_id")
+    provider = str(data.get("provider", "mock")).strip().lower() or "mock"
 
     if order_id is None:
         return jsonify({
@@ -28,6 +32,7 @@ def create_payment():
         payload = PaymentService.create_payment(
             order_id=int(order_id),
             user_id=g.current_user.id,
+            provider=provider,
         )
     except ValueError:
         return jsonify({
@@ -71,12 +76,23 @@ def stripe_webhook():
     payload = request.get_data()
     signature = request.headers.get("Stripe-Signature")
 
+    logger.info(
+        "stripe_webhook_request_received signature_present=%s payload_bytes=%s",
+        bool(signature),
+        len(payload or b""),
+    )
+
     try:
         response = PaymentService.handle_stripe_webhook(
             payload=payload,
             signature=signature,
         )
     except PaymentError as exc:
+        logger.error(
+            "stripe_webhook_request_failed code=%s message=%s",
+            exc.code,
+            exc.message,
+        )
         return jsonify({
             "error": {
                 "code": exc.code,
@@ -84,4 +100,5 @@ def stripe_webhook():
             }
         }), exc.status_code
 
+    logger.info("stripe_webhook_request_processed")
     return jsonify(response), 200

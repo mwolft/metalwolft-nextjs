@@ -1,6 +1,7 @@
 import uuid
 from decimal import Decimal
 import logging
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from sqlalchemy.orm import selectinload
 
@@ -51,67 +52,88 @@ class PaymentService:
     @staticmethod
     def create_payment(*, order_id: int, user_id: int, provider: str = "mock"):
         try:
-            with db.session.begin():
-                order = (
-                    Order.query
-                    .options(selectinload(Order.payments))
-                    .filter_by(id=order_id, user_id=user_id)
-                    .with_for_update()
-                    .first()
+            order = (
+                Order.query
+                .options(selectinload(Order.payments))
+                .filter_by(id=order_id, user_id=user_id)
+                .with_for_update()
+                .first()
+            )
+
+            if not order:
+                raise PaymentError(
+                    code="ORDER_NOT_FOUND",
+                    message="Order not found.",
+                    status_code=404,
                 )
 
-                if not order:
-                    raise PaymentError(
-                        code="ORDER_NOT_FOUND",
-                        message="Order not found.",
-                        status_code=404,
-                    )
-
-                if order.status == "paid":
-                    raise PaymentError(
-                        code="ORDER_ALREADY_PAID",
-                        message="Order is already paid.",
-                        status_code=409,
-                    )
-
-                active_payment = next(
-                    (
-                        payment for payment in order.payments
-                        if payment.status in PaymentService.ACTIVE_STATUSES
-                    ),
-                    None,
+            if order.status == "paid":
+                raise PaymentError(
+                    code="ORDER_ALREADY_PAID",
+                    message="Order is already paid.",
+                    status_code=409,
                 )
-                if active_payment:
-                    raise PaymentError(
-                        code="ACTIVE_PAYMENT_EXISTS",
-                        message="An active payment already exists for this order.",
-                        status_code=409,
-                    )
 
-                idempotency_key = uuid.uuid4().hex
-                external_id = f"mock_{provider}_{uuid.uuid4().hex}"
-
-                payment = Payment(
-                    order_id=order.id,
-                    provider=provider,
-                    status="pending",
-                    amount=Decimal(order.total),
-                    currency=order.currency,
-                    external_id=external_id,
-                    idempotency_key=idempotency_key,
+            active_payment = next(
+                (
+                    payment for payment in order.payments
+                    if payment.status in PaymentService.ACTIVE_STATUSES
+                ),
+                None,
+            )
+            if active_payment:
+                raise PaymentError(
+                    code="ACTIVE_PAYMENT_EXISTS",
+                    message="An active payment already exists for this order.",
+                    status_code=409,
                 )
-                db.session.add(payment)
-                db.session.flush()
+
+            idempotency_key = uuid.uuid4().hex
+            external_id = f"mock_{provider}_{uuid.uuid4().hex}"
+
+            payment = Payment(
+                order_id=order.id,
+                provider=provider,
+                status="pending",
+                amount=Decimal(order.total),
+                currency=order.currency,
+                external_id=external_id,
+                idempotency_key=idempotency_key,
+            )
+            db.session.add(payment)
+            db.session.flush()
+
+            provider_payload = {
+                "provider": provider,
+                "external_id": external_id,
+                "status": "pending",
+            }
+
+            if provider == "stripe":
+                session = PaymentService._create_stripe_checkout_session(
+                    order=order,
+                    payment=payment,
+                )
+                payment.external_id = session.id
+                external_id = session.id
+                provider_payload = {
+                    "provider": provider,
+                    "external_id": session.id,
+                    "status": "pending",
+                    "checkout_url": session.url,
+                }
+
+            db.session.commit()
         except PaymentError:
+            db.session.rollback()
+            raise
+        except Exception:
+            db.session.rollback()
             raise
 
         return {
             "payment": PaymentService.serialize_payment(payment),
-            "provider_payload": {
-                "provider": provider,
-                "external_id": external_id,
-                "status": "pending",
-            },
+            "provider_payload": provider_payload,
         }
 
     @staticmethod
@@ -134,8 +156,17 @@ class PaymentService:
             signature=signature,
         )
 
+        logger.info(
+            "stripe_webhook_event_received type=%s",
+            event["type"],
+        )
+
         if event["type"] == "checkout.session.completed":
             session = event["data"]["object"]
+            logger.info(
+                "stripe_webhook_checkout_completed session_id=%s",
+                session.get("id"),
+            )
             PaymentService._mark_stripe_payment_succeeded(
                 external_id=session["id"],
                 amount_total=session.get("amount_total"),
@@ -143,21 +174,40 @@ class PaymentService:
             )
         elif event["type"] == "checkout.session.expired":
             session = event["data"]["object"]
+            logger.info(
+                "stripe_webhook_checkout_expired session_id=%s",
+                session.get("id"),
+            )
             PaymentService._mark_stripe_payment_failed(
                 external_id=session["id"],
                 event_type=event["type"],
             )
         elif event["type"] == "payment_intent.payment_failed":
             payment_intent = event["data"]["object"]
+            logger.info(
+                "stripe_webhook_payment_intent_failed payment_intent_id=%s",
+                payment_intent.get("id"),
+            )
             PaymentService._mark_stripe_payment_failed(
                 external_id=payment_intent["id"],
                 event_type=event["type"],
+            )
+        else:
+            logger.info(
+                "stripe_webhook_event_ignored type=%s",
+                event["type"],
             )
 
         return {"received": True}
 
     @staticmethod
     def _construct_stripe_event(*, payload: bytes, signature: str | None):
+        logger.info(
+            "stripe_webhook_signature_check configured=%s signature_present=%s",
+            bool(Config.STRIPE_WEBHOOK_SECRET),
+            bool(signature),
+        )
+
         if stripe is None:
             raise PaymentError(
                 code="STRIPE_NOT_INSTALLED",
@@ -180,17 +230,123 @@ class PaymentService:
             )
 
         try:
-            return stripe.Webhook.construct_event(
+            event = stripe.Webhook.construct_event(
                 payload=payload,
                 sig_header=signature,
                 secret=Config.STRIPE_WEBHOOK_SECRET,
             )
+            logger.info(
+                "stripe_webhook_signature_valid type=%s",
+                event["type"],
+            )
+            return event
         except Exception as exc:
+            logger.error(
+                "stripe_webhook_signature_invalid error=%s",
+                str(exc),
+            )
             raise PaymentError(
                 code="INVALID_STRIPE_SIGNATURE",
                 message=str(exc),
                 status_code=400,
             ) from exc
+
+    @staticmethod
+    def _create_stripe_checkout_session(*, order: Order, payment: Payment):
+        if stripe is None:
+            raise PaymentError(
+                code="STRIPE_NOT_INSTALLED",
+                message="Stripe integration is not installed on the backend.",
+                status_code=503,
+            )
+
+        if not Config.STRIPE_SECRET_KEY:
+            raise PaymentError(
+                code="STRIPE_NOT_CONFIGURED",
+                message="Stripe payment integration is not configured.",
+                status_code=503,
+            )
+
+        if not Config.STRIPE_SUCCESS_URL or not Config.STRIPE_CANCEL_URL:
+            raise PaymentError(
+                code="STRIPE_NOT_CONFIGURED",
+                message="Stripe success/cancel URLs are not configured.",
+                status_code=503,
+            )
+
+        stripe.api_key = Config.STRIPE_SECRET_KEY
+
+        success_separator = "&" if "?" in Config.STRIPE_SUCCESS_URL else "?"
+        success_url = (
+            f"{Config.STRIPE_SUCCESS_URL}{success_separator}"
+            f"order_id={order.id}&session_id={{CHECKOUT_SESSION_ID}}"
+        )
+        cancel_url = PaymentService._append_query_params(
+            Config.STRIPE_CANCEL_URL,
+            {
+                "order_id": str(order.id),
+            },
+        )
+
+        logger.info(
+            "stripe_checkout_session_urls order_id=%s success_url=%s cancel_url=%s placeholder_present=%s encoded_braces=%s",
+            order.id,
+            success_url,
+            cancel_url,
+            "{CHECKOUT_SESSION_ID}" in success_url,
+            ("%7B" in success_url or "%7D" in success_url),
+        )
+
+        try:
+            amount_total = int((Decimal(order.total) * Decimal("100")).quantize(Decimal("1")))
+        except Exception as exc:
+            raise PaymentError(
+                code="INVALID_ORDER_TOTAL",
+                message="Order total is invalid for Stripe Checkout.",
+                status_code=400,
+            ) from exc
+
+        try:
+            return stripe.checkout.Session.create(
+                mode="payment",
+                success_url=success_url,
+                cancel_url=cancel_url,
+                customer_email=order.customer_email,
+                metadata={
+                    "order_id": str(order.id),
+                    "payment_id": str(payment.id),
+                },
+                line_items=[
+                    {
+                        "price_data": {
+                            "currency": str(order.currency).lower(),
+                            "product_data": {
+                                "name": f"Pedido MetalWolft #{order.id}",
+                            },
+                            "unit_amount": amount_total,
+                        },
+                        "quantity": 1,
+                    }
+                ],
+            )
+        except Exception as exc:
+            logger.exception(
+                "stripe_checkout_session_create_failed order_id=%s payment_id=%s",
+                order.id,
+                payment.id,
+            )
+            raise PaymentError(
+                code="STRIPE_SESSION_ERROR",
+                message=str(exc),
+                status_code=502,
+            ) from exc
+
+    @staticmethod
+    def _append_query_params(url: str, params: dict[str, str]) -> str:
+        parsed = urlparse(url)
+        query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        query.update(params)
+        return urlunparse(parsed._replace(query=urlencode(query, safe="{}")))
 
     @staticmethod
     def _mark_stripe_payment_succeeded(
@@ -199,7 +355,7 @@ class PaymentService:
         amount_total,
         currency: str | None,
     ):
-        with db.session.begin():
+        try:
             payment = (
                 Payment.query
                 .options(selectinload(Payment.order))
@@ -226,6 +382,15 @@ class PaymentService:
                 )
                 return
 
+            logger.info(
+                "stripe_webhook_payment_found external_id=%s order_id=%s payment_id=%s current_payment_status=%s current_order_status=%s",
+                external_id,
+                payment.order_id,
+                payment.id,
+                payment.status,
+                payment.order.status,
+            )
+
             expected_amount = Decimal(payment.amount)
             received_amount = PaymentService._stripe_amount_to_decimal(amount_total)
             expected_currency = str(payment.currency).lower()
@@ -247,17 +412,30 @@ class PaymentService:
             payment.status = "succeeded"
             if payment.order.status not in PaymentService.FINAL_ORDER_STATUSES:
                 payment.order.status = "paid"
+            db.session.commit()
 
             logger.info(
-                "stripe_webhook_payment_succeeded external_id=%s order_id=%s payment_id=%s",
+                "stripe_webhook_payment_succeeded external_id=%s order_id=%s payment_id=%s new_payment_status=%s new_order_status=%s",
                 external_id,
                 payment.order_id,
                 payment.id,
+                payment.status,
+                payment.order.status,
             )
+        except PaymentError:
+            db.session.rollback()
+            raise
+        except Exception:
+            db.session.rollback()
+            logger.exception(
+                "stripe_webhook_payment_succeeded_failed external_id=%s",
+                external_id,
+            )
+            raise
 
     @staticmethod
     def _mark_stripe_payment_failed(*, external_id: str, event_type: str):
-        with db.session.begin():
+        try:
             payment = (
                 Payment.query
                 .options(selectinload(Payment.order))
@@ -284,17 +462,41 @@ class PaymentService:
                 )
                 return
 
-            payment.status = "failed"
-            if payment.order.status not in PaymentService.FINAL_ORDER_STATUSES:
-                payment.order.status = "payment_failed"
-
             logger.info(
-                "stripe_webhook_payment_failed event_type=%s external_id=%s order_id=%s payment_id=%s",
+                "stripe_webhook_payment_found_for_failure event_type=%s external_id=%s order_id=%s payment_id=%s current_payment_status=%s current_order_status=%s",
                 event_type,
                 external_id,
                 payment.order_id,
                 payment.id,
+                payment.status,
+                payment.order.status,
             )
+
+            payment.status = "failed"
+            if payment.order.status not in PaymentService.FINAL_ORDER_STATUSES:
+                payment.order.status = "payment_failed"
+            db.session.commit()
+
+            logger.info(
+                "stripe_webhook_payment_failed event_type=%s external_id=%s order_id=%s payment_id=%s new_payment_status=%s new_order_status=%s",
+                event_type,
+                external_id,
+                payment.order_id,
+                payment.id,
+                payment.status,
+                payment.order.status,
+            )
+        except PaymentError:
+            db.session.rollback()
+            raise
+        except Exception:
+            db.session.rollback()
+            logger.exception(
+                "stripe_webhook_payment_failed_handler_error event_type=%s external_id=%s",
+                event_type,
+                external_id,
+            )
+            raise
 
     @staticmethod
     def _stripe_amount_to_decimal(amount_total) -> Decimal:
