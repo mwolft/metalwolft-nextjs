@@ -466,14 +466,28 @@ class PaymentService:
                     "amount": {
                         "currency_code": order.currency,
                         "value": format(Decimal(order.total), "f"),
+                        "breakdown": {
+                            "item_total": {
+                                "currency_code": order.currency,
+                                "value": format(Decimal(order.total), "f"),
+                            }
+                        },
                     },
                     "description": f"Pedido MetalWolft #{order.id}",
                 }
             ],
-            "application_context": {
-                "return_url": return_url,
-                "cancel_url": cancel_url,
-                "user_action": "PAY_NOW",
+            "payment_source": {
+                "paypal": {
+                    "experience_context": {
+                        "brand_name": "Metal Wolft",
+                        "locale": "es-ES",
+                        "landing_page": "LOGIN",
+                        "shipping_preference": "NO_SHIPPING",
+                        "user_action": "PAY_NOW",
+                        "return_url": return_url,
+                        "cancel_url": cancel_url,
+                    }
+                }
             },
         }
 
@@ -497,7 +511,7 @@ class PaymentService:
             )
 
         checkout_url = next(
-            (link["href"] for link in data.get("links", []) if link.get("rel") == "approve"),
+            (link["href"] for link in data.get("links", []) if link.get("rel") == "payer-action"),
             None,
         )
 
