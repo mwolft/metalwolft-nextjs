@@ -118,10 +118,20 @@ export default function CheckoutSuccessPage() {
 
   const order = orderData?.order;
   const latestPayment = order?.payments?.[0] ?? null;
+  const isPaid = order?.status === "paid";
+  const isPending = order?.status === "pending_payment";
+  const paymentProviderLabel =
+    latestPayment?.provider === "stripe"
+      ? "Stripe"
+      : latestPayment?.provider === "bizum"
+        ? "Bizum"
+        : latestPayment?.provider === "transferencia"
+          ? "Transferencia bancaria"
+          : latestPayment?.provider ?? null;
 
   return (
     <main style={{ maxWidth: "760px", margin: "0 auto", padding: "2rem 1rem" }}>
-      <h1>Pago con Stripe</h1>
+      <h1>{isPaid ? "Pedido pagado" : "Estado del pago"}</h1>
 
       {loading ? <p>Comprobando el estado real de tu pago...</p> : null}
 
@@ -150,23 +160,23 @@ export default function CheckoutSuccessPage() {
               borderRadius: "16px",
               border: "1px solid #e5e5e5",
               background:
-                order.status === "paid"
+                isPaid
                   ? "#ecfdf5"
-                  : order.status === "pending_payment"
+                  : isPending
                     ? "#eff6ff"
                     : "#fef2f2",
               color:
-                order.status === "paid"
+                isPaid
                   ? "#166534"
-                  : order.status === "pending_payment"
+                  : isPending
                     ? "#1d4ed8"
                     : "#991b1b",
             }}
           >
             <strong>
-              {order.status === "paid"
+              {isPaid
                 ? "Pago confirmado"
-                : order.status === "pending_payment"
+                : isPending
                   ? "Pago pendiente de confirmación"
                   : "Estado de pago no confirmado"}
             </strong>
@@ -174,7 +184,14 @@ export default function CheckoutSuccessPage() {
               Pedido #{order.id}. Estado del pedido: {order.status}. Total:{" "}
               {order.summary.total} {order.currency}
             </p>
-            {order.status === "pending_payment" ? (
+            {isPaid ? (
+              <p style={{ margin: "0.5rem 0 0" }}>
+                Hemos recibido tu pedido y el pago ha quedado confirmado
+                correctamente. Te contactaremos si necesitamos algún dato
+                adicional.
+              </p>
+            ) : null}
+            {isPending ? (
               <p style={{ margin: "0.5rem 0 0" }}>
                 Estamos esperando la confirmación del webhook de Stripe. Esta
                 pantalla se actualizará automáticamente.
@@ -193,17 +210,23 @@ export default function CheckoutSuccessPage() {
           >
             <h2 style={{ marginTop: 0 }}>Detalles</h2>
             <p style={{ margin: "0.35rem 0" }}>Pedido: #{order.id}</p>
+            <p style={{ margin: "0.35rem 0" }}>Total: {order.summary.total} {order.currency}</p>
             {sessionId ? (
               <p style={{ margin: "0.35rem 0" }}>Stripe session: {sessionId}</p>
             ) : null}
             {latestPayment ? (
               <>
                 <p style={{ margin: "0.35rem 0" }}>
-                  Pago #{latestPayment.id} - {latestPayment.provider}
+                  Pago #{latestPayment.id}
                 </p>
                 <p style={{ margin: "0.35rem 0" }}>
                   Estado del pago: {latestPayment.status}
                 </p>
+                {paymentProviderLabel ? (
+                  <p style={{ margin: "0.35rem 0" }}>
+                    Método de pago: {paymentProviderLabel}
+                  </p>
+                ) : null}
               </>
             ) : null}
           </section>
@@ -223,6 +246,20 @@ export default function CheckoutSuccessPage() {
           }}
         >
           Volver al inicio
+        </Link>
+        <Link
+          href="/productos"
+          style={{
+            display: "inline-block",
+            padding: "0.75rem 1rem",
+            borderRadius: "12px",
+            border: "1px solid #d4d4d4",
+            background: "#fff",
+            color: "#111",
+            textDecoration: "none",
+          }}
+        >
+          Seguir comprando
         </Link>
         <button
           onClick={() => window.location.reload()}

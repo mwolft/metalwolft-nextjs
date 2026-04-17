@@ -42,6 +42,17 @@ class Config:
         "STRIPE_CANCEL_URL",
         "https://animated-tribble-v6pjw9j6pp4rhwwrg-3000.app.github.dev/checkout/cancel",
     )
+    PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID")
+    PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET")
+    PAYPAL_BASE_URL = os.getenv("PAYPAL_BASE_URL", "https://api-m.sandbox.paypal.com")
+    PAYPAL_SUCCESS_URL = os.getenv(
+        "PAYPAL_SUCCESS_URL",
+        "https://animated-tribble-v6pjw9j6pp4rhwwrg-3000.app.github.dev/checkout/paypal/success",
+    )
+    PAYPAL_CANCEL_URL = os.getenv(
+        "PAYPAL_CANCEL_URL",
+        "https://animated-tribble-v6pjw9j6pp4rhwwrg-3000.app.github.dev/checkout/paypal/cancel",
+    )
 
     CORS_ALLOWED_ORIGINS = [
         r"https://.*-3000\.app\.github\.dev",

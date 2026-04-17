@@ -2,6 +2,7 @@ import uuid
 from decimal import Decimal
 import logging
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+import requests
 
 from sqlalchemy.orm import selectinload
 
@@ -122,6 +123,19 @@ class PaymentService:
                     "status": "pending",
                     "checkout_url": session.url,
                 }
+            elif provider == "paypal":
+                paypal_order = PaymentService._create_paypal_checkout_order(
+                    order=order,
+                    payment=payment,
+                )
+                payment.external_id = paypal_order["id"]
+                external_id = paypal_order["id"]
+                provider_payload = {
+                    "provider": provider,
+                    "external_id": paypal_order["id"],
+                    "status": "pending",
+                    "checkout_url": paypal_order["checkout_url"],
+                }
 
             db.session.commit()
         except PaymentError:
@@ -134,6 +148,92 @@ class PaymentService:
         return {
             "payment": PaymentService.serialize_payment(payment),
             "provider_payload": provider_payload,
+        }
+
+    @staticmethod
+    def capture_paypal_payment(*, order_id: int, user_id: int, paypal_order_id: str):
+        try:
+            order = (
+                Order.query
+                .options(selectinload(Order.payments))
+                .filter_by(id=order_id, user_id=user_id)
+                .with_for_update()
+                .first()
+            )
+
+            if not order:
+                raise PaymentError(
+                    code="ORDER_NOT_FOUND",
+                    message="Order not found.",
+                    status_code=404,
+                )
+
+            payment = next(
+                (
+                    current_payment
+                    for current_payment in order.payments
+                    if current_payment.provider == "paypal"
+                    and current_payment.external_id == paypal_order_id
+                ),
+                None,
+            )
+
+            if not payment:
+                raise PaymentError(
+                    code="PAYMENT_NOT_FOUND",
+                    message="PayPal payment not found for this order.",
+                    status_code=404,
+                )
+
+            if payment.status == "succeeded":
+                return {
+                    "payment": PaymentService.serialize_payment(payment),
+                    "order_status": order.status,
+                    "provider_status": "COMPLETED",
+                }
+
+            access_token = PaymentService._get_paypal_access_token()
+            response = requests.post(
+                f"{Config.PAYPAL_BASE_URL}/v2/checkout/orders/{paypal_order_id}/capture",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                timeout=30,
+            )
+            data = response.json()
+
+            if not response.ok:
+                raise PaymentError(
+                    code="PAYPAL_CAPTURE_ERROR",
+                    message=data.get("message") or "Failed to capture PayPal order.",
+                    status_code=502,
+                )
+
+            provider_status = str(data.get("status", "")).upper()
+
+            if provider_status == "COMPLETED":
+                payment.status = "succeeded"
+                if order.status not in PaymentService.FINAL_ORDER_STATUSES:
+                    order.status = "paid"
+            elif provider_status in {"VOIDED", "FAILED", "DECLINED"}:
+                payment.status = "failed"
+                if order.status not in PaymentService.FINAL_ORDER_STATUSES:
+                    order.status = "payment_failed"
+
+            db.session.commit()
+        except PaymentError:
+            db.session.rollback()
+            raise
+        except Exception:
+            db.session.rollback()
+            raise
+
+        return {
+            "payment": PaymentService.serialize_payment(payment),
+            "order_status": order.status,
+            "provider_status": provider_status,
         }
 
     @staticmethod
@@ -340,6 +440,117 @@ class PaymentService:
                 message=str(exc),
                 status_code=502,
             ) from exc
+
+    @staticmethod
+    def _create_paypal_checkout_order(*, order: Order, payment: Payment):
+        access_token = PaymentService._get_paypal_access_token()
+
+        return_url = PaymentService._append_query_params(
+            Config.PAYPAL_SUCCESS_URL,
+            {
+                "order_id": str(order.id),
+            },
+        )
+        cancel_url = PaymentService._append_query_params(
+            Config.PAYPAL_CANCEL_URL,
+            {
+                "order_id": str(order.id),
+            },
+        )
+
+        payload = {
+            "intent": "CAPTURE",
+            "purchase_units": [
+                {
+                    "reference_id": str(order.id),
+                    "amount": {
+                        "currency_code": order.currency,
+                        "value": format(Decimal(order.total), "f"),
+                    },
+                    "description": f"Pedido MetalWolft #{order.id}",
+                }
+            ],
+            "application_context": {
+                "return_url": return_url,
+                "cancel_url": cancel_url,
+                "user_action": "PAY_NOW",
+            },
+        }
+
+        response = requests.post(
+            f"{Config.PAYPAL_BASE_URL}/v2/checkout/orders",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            json=payload,
+            timeout=30,
+        )
+        data = response.json()
+
+        if not response.ok:
+            raise PaymentError(
+                code="PAYPAL_CREATE_ORDER_ERROR",
+                message=data.get("message") or "Failed to create PayPal order.",
+                status_code=502,
+            )
+
+        checkout_url = next(
+            (link["href"] for link in data.get("links", []) if link.get("rel") == "approve"),
+            None,
+        )
+
+        if not checkout_url:
+            raise PaymentError(
+                code="PAYPAL_CREATE_ORDER_ERROR",
+                message="PayPal approval URL was not returned.",
+                status_code=502,
+            )
+
+        logger.info(
+            "paypal_checkout_order_created order_id=%s payment_id=%s paypal_order_id=%s return_url=%s cancel_url=%s",
+            order.id,
+            payment.id,
+            data.get("id"),
+            return_url,
+            cancel_url,
+        )
+
+        return {
+            "id": data["id"],
+            "checkout_url": checkout_url,
+        }
+
+    @staticmethod
+    def _get_paypal_access_token() -> str:
+        if not Config.PAYPAL_CLIENT_ID or not Config.PAYPAL_CLIENT_SECRET:
+            raise PaymentError(
+                code="PAYPAL_NOT_CONFIGURED",
+                message="PayPal integration is not configured.",
+                status_code=503,
+            )
+
+        response = requests.post(
+            f"{Config.PAYPAL_BASE_URL}/v1/oauth2/token",
+            headers={
+                "Accept": "application/json",
+                "Accept-Language": "en_US",
+            },
+            data={"grant_type": "client_credentials"},
+            auth=(Config.PAYPAL_CLIENT_ID, Config.PAYPAL_CLIENT_SECRET),
+            timeout=30,
+        )
+        data = response.json()
+
+        if not response.ok or "access_token" not in data:
+            raise PaymentError(
+                code="PAYPAL_AUTH_ERROR",
+                message=data.get("error_description") or "Failed to authenticate with PayPal.",
+                status_code=502,
+            )
+
+        return data["access_token"]
 
     @staticmethod
     def _append_query_params(url: str, params: dict[str, str]) -> str:

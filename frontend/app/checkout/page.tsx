@@ -22,7 +22,7 @@ type CheckoutFormState = {
 
 type CheckoutFormErrors = Partial<Record<keyof CheckoutFormState, string>>;
 type CheckoutStep = "details" | "review";
-type PaymentMethod = "stripe" | "bizum" | "transferencia" | null;
+type PaymentMethod = "stripe" | "paypal" | "bizum" | "transferencia" | null;
 
 export default function CheckoutPage() {
   const [session, setSession] = useState<SessionState>({
@@ -374,7 +374,7 @@ export default function CheckoutPage() {
         paymentMethod,
       });
 
-      if (paymentMethod === "stripe") {
+      if (paymentMethod === "stripe" || paymentMethod === "paypal") {
         const paymentRes = await fetch(`${CLIENT_API_URL}/api/payments/create`, {
           method: "POST",
           headers: {
@@ -383,25 +383,28 @@ export default function CheckoutPage() {
           credentials: "include",
           body: JSON.stringify({
             order_id: data.order_id,
-            provider: "stripe",
+            provider: paymentMethod,
           }),
         });
         const paymentData = await paymentRes.json();
 
         if (!paymentRes.ok) {
           throw new Error(
-            paymentData?.error?.message ?? "No se pudo iniciar el pago con Stripe.",
+            paymentData?.error?.message ??
+              `No se pudo iniciar el pago con ${paymentMethod}.`,
           );
         }
 
         setPaymentFlowState({
-          provider: "stripe",
+          provider: paymentMethod,
           paymentId: paymentData.payment?.id,
           status: paymentData.payment?.status ?? "pending",
           externalId: paymentData.payment?.external_id ?? null,
         });
         setPaymentMessage(
-          "Pago Stripe iniciado. El siguiente paso será conectar la redirección real a Stripe Checkout.",
+          paymentMethod === "stripe"
+            ? "Pago Stripe iniciado. Redirigiendo a Stripe Checkout."
+            : "Pago PayPal iniciado. Redirigiendo a PayPal.",
         );
 
         if (paymentData.provider_payload?.checkout_url) {
@@ -797,6 +800,7 @@ export default function CheckoutPage() {
                 <div style={{ display: "grid", gap: "0.75rem" }}>
                   {[
                     { value: "stripe", label: "Stripe" },
+                    { value: "paypal", label: "PayPal" },
                     { value: "bizum", label: "Bizum" },
                     { value: "transferencia", label: "Transferencia bancaria" },
                   ].map((method) => (

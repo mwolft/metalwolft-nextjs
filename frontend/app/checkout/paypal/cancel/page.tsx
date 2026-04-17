@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-export default function CheckoutCancelPage() {
+export default function PaypalCancelPage() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
 
   return (
     <main style={{ maxWidth: "760px", margin: "0 auto", padding: "2rem 1rem" }}>
-      <h1>Pago cancelado</h1>
+      <h1>Pago PayPal cancelado</h1>
 
       <section
         style={{
@@ -21,10 +21,10 @@ export default function CheckoutCancelPage() {
           color: "#92400e",
         }}
       >
-        <strong>No se ha completado el pago.</strong>
+        <strong>No se ha completado el pago con PayPal.</strong>
         <p style={{ margin: "0.5rem 0 0" }}>
           Tu pedido sigue pendiente de pago y puedes volver al checkout para
-          reintentar o revisar el carrito antes de continuar.
+          reintentarlo.
         </p>
         {orderId ? (
           <p style={{ margin: "0.5rem 0 0" }}>Pedido relacionado: #{orderId}</p>

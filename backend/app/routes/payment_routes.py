@@ -52,6 +52,45 @@ def create_payment():
     return jsonify(payload), 201
 
 
+@payments_bp.post("/paypal/capture")
+@login_required
+def capture_paypal_payment():
+    data = request.get_json() or {}
+    order_id = data.get("order_id")
+    paypal_order_id = data.get("paypal_order_id")
+
+    if order_id is None or not paypal_order_id:
+        return jsonify({
+            "error": {
+                "code": "INVALID_PAYLOAD",
+                "message": "order_id and paypal_order_id are required.",
+            }
+        }), 400
+
+    try:
+        payload = PaymentService.capture_paypal_payment(
+            order_id=int(order_id),
+            user_id=g.current_user.id,
+            paypal_order_id=str(paypal_order_id),
+        )
+    except ValueError:
+        return jsonify({
+            "error": {
+                "code": "INVALID_PAYLOAD",
+                "message": "order_id must be an integer.",
+            }
+        }), 400
+    except PaymentError as exc:
+        return jsonify({
+            "error": {
+                "code": exc.code,
+                "message": exc.message,
+            }
+        }), exc.status_code
+
+    return jsonify(payload), 200
+
+
 @orders_bp.get("/<int:order_id>")
 @login_required
 def get_order(order_id: int):
