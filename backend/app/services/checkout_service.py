@@ -167,6 +167,7 @@ class CheckoutService:
                         "amount": str(payment.amount),
                         "currency": payment.currency,
                         "external_id": payment.external_id,
+                        "reference": payment.reference,
                     }
                     for payment in order.payments
                 ],

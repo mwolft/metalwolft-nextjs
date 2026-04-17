@@ -29,8 +29,10 @@ class PaymentError(Exception):
 
 
 class PaymentService:
-    ACTIVE_STATUSES = {"pending"}
+    ACTIVE_STATUSES = {"pending", "pending_manual"}
     FINAL_ORDER_STATUSES = {"paid", "cancelled", "failed"}
+    MANUAL_PROVIDERS = {"bank_transfer"}
+    MANUAL_SETTLEMENT_BLOCKED_ORDER_STATUSES = {"paid", "cancelled", "failed"}
 
     @staticmethod
     def get_order_for_user(*, order_id: int, user_id: int) -> Order:
@@ -75,6 +77,9 @@ class PaymentService:
                     status_code=409,
                 )
 
+            if provider == "bank_transfer":
+                PaymentService._validate_bank_transfer_configuration()
+
             active_payment = next(
                 (
                     payment for payment in order.payments
@@ -90,12 +95,16 @@ class PaymentService:
                 )
 
             idempotency_key = uuid.uuid4().hex
-            external_id = f"mock_{provider}_{uuid.uuid4().hex}"
+            external_id = None
+            status = "pending"
+
+            if provider not in {"bank_transfer"}:
+                external_id = f"mock_{provider}_{uuid.uuid4().hex}"
 
             payment = Payment(
                 order_id=order.id,
                 provider=provider,
-                status="pending",
+                status=status,
                 amount=Decimal(order.total),
                 currency=order.currency,
                 external_id=external_id,
@@ -135,6 +144,22 @@ class PaymentService:
                     "external_id": paypal_order["id"],
                     "status": "pending",
                     "checkout_url": paypal_order["checkout_url"],
+                }
+            elif provider == "bank_transfer":
+                payment.status = "pending_manual"
+                payment.external_id = None
+                payment.reference = PaymentService._build_bank_transfer_reference(
+                    order=order,
+                    payment=payment,
+                )
+                provider_payload = {
+                    "type": "manual_instructions",
+                    "provider": provider,
+                    "payment_status": payment.status,
+                    "order_status": order.status,
+                    "instructions": PaymentService._build_bank_transfer_instructions(
+                        payment=payment,
+                    ),
                 }
 
             db.session.commit()
@@ -246,7 +271,69 @@ class PaymentService:
             "amount": format(Decimal(payment.amount), "f"),
             "currency": payment.currency,
             "external_id": payment.external_id,
+            "reference": payment.reference,
             "idempotency_key": payment.idempotency_key,
+        }
+
+    @staticmethod
+    def mark_manual_payments_succeeded(*, payment_ids: list[int]) -> dict[str, int]:
+        if not payment_ids:
+            return {"updated": 0, "skipped": 0}
+
+        try:
+            payments = (
+                Payment.query
+                .options(selectinload(Payment.order))
+                .filter(Payment.id.in_(payment_ids))
+                .with_for_update()
+                .all()
+            )
+
+            updated = 0
+            skipped = 0
+
+            for payment in payments:
+                if (
+                    payment.provider not in PaymentService.MANUAL_PROVIDERS
+                    or payment.status != "pending_manual"
+                    or not payment.order
+                    or payment.order.status in PaymentService.MANUAL_SETTLEMENT_BLOCKED_ORDER_STATUSES
+                ):
+                    skipped += 1
+                    continue
+
+                payment.status = "succeeded"
+                payment.order.status = "paid"
+                updated += 1
+
+            db.session.commit()
+            return {"updated": updated, "skipped": skipped}
+        except Exception:
+            db.session.rollback()
+            raise
+
+    @staticmethod
+    def _build_bank_transfer_reference(*, order: Order, payment: Payment) -> str:
+        return f"MW-{order.id}-{payment.id}"
+
+    @staticmethod
+    def _validate_bank_transfer_configuration():
+        if not Config.BANK_TRANSFER_ACCOUNT_HOLDER or not Config.BANK_TRANSFER_IBAN:
+            raise PaymentError(
+                code="BANK_TRANSFER_NOT_CONFIGURED",
+                message="Bank transfer instructions are not configured on the backend.",
+                status_code=503,
+            )
+
+    @staticmethod
+    def _build_bank_transfer_instructions(*, payment: Payment) -> dict[str, str]:
+        PaymentService._validate_bank_transfer_configuration()
+
+        return {
+            "account_holder": Config.BANK_TRANSFER_ACCOUNT_HOLDER,
+            "iban": Config.BANK_TRANSFER_IBAN,
+            "reference": payment.reference or "",
+            "message": Config.BANK_TRANSFER_INSTRUCTIONS,
         }
 
     @staticmethod

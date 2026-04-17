@@ -53,6 +53,12 @@ class Config:
         "PAYPAL_CANCEL_URL",
         "https://animated-tribble-v6pjw9j6pp4rhwwrg-3000.app.github.dev/checkout/paypal/cancel",
     )
+    BANK_TRANSFER_ACCOUNT_HOLDER = os.getenv("BANK_TRANSFER_ACCOUNT_HOLDER")
+    BANK_TRANSFER_IBAN = os.getenv("BANK_TRANSFER_IBAN")
+    BANK_TRANSFER_INSTRUCTIONS = os.getenv(
+        "BANK_TRANSFER_INSTRUCTIONS",
+        "Realiza la transferencia indicando la referencia exacta. Validaremos el pago manualmente antes de poner el pedido en produccion.",
+    )
 
     CORS_ALLOWED_ORIGINS = [
         r"https://.*-3000\.app\.github\.dev",

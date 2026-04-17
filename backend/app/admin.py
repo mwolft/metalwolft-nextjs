@@ -1,3 +1,5 @@
+from flask import flash
+from flask_admin.actions import action
 from flask_admin.contrib.sqla import ModelView
 from markupsafe import Markup
 from wtforms import FileField
@@ -7,6 +9,7 @@ from app.models.order import Order
 from app.models.payment import Payment
 from app.models.product import Category, Product, ProductImage
 from app.models.user import User
+from app.services.payment_service import PaymentService
 from app.utils.cloudinary_service import delete_image, upload_image
 
 
@@ -261,17 +264,57 @@ class OrderItemAdmin(ModelView):
 
 
 class PaymentAdmin(ModelView):
-    column_list = ("id", "order_id", "provider", "status", "amount", "created_at")
+    column_list = (
+        "id",
+        "order_id",
+        "provider",
+        "status",
+        "amount",
+        "currency",
+        "reference",
+        "external_id",
+        "created_at",
+    )
     column_filters = ("provider", "status", "created_at")
-    column_searchable_list = ("order_id", "external_id")
+    column_searchable_list = ("reference", "external_id", "idempotency_key")
     column_default_sort = ("created_at", True)
     can_create = False
     can_edit = False
     can_delete = False
     can_view_details = True
     column_labels = {
+        "id": "ID",
+        "order_id": "Pedido",
         "provider": "Proveedor",
+        "status": "Estado",
+        "amount": "Importe",
+        "currency": "Moneda",
+        "reference": "Referencia",
+        "external_id": "External ID",
+        "created_at": "Fecha",
     }
+
+    @action("mark_as_paid", "Marcar como pagado", "¿Marcar los pagos manuales seleccionados como pagados?")
+    def action_mark_as_paid(self, ids):
+        try:
+            result = PaymentService.mark_manual_payments_succeeded(
+                payment_ids=[int(payment_id) for payment_id in ids],
+            )
+        except Exception as exc:
+            flash(f"No se pudieron actualizar los pagos: {exc}", "error")
+            return
+
+        if result["updated"]:
+            flash(
+                f"Se marcaron como pagados {result['updated']} pago(s) manual(es).",
+                "success",
+            )
+
+        if result["skipped"]:
+            flash(
+                f"Se omitieron {result['skipped']} pago(s) no aptos para esta accion.",
+                "warning",
+            )
 
 
 class CartAdmin(ModelView):

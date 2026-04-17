@@ -15,6 +15,7 @@ class Payment(db.Model):
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     currency = db.Column(db.String(3), nullable=False, default="EUR")
     external_id = db.Column(db.String(255), nullable=True)
+    reference = db.Column(db.String(64), nullable=True)
     idempotency_key = db.Column(db.String(64), nullable=False, index=True)
 
     created_at = db.Column(

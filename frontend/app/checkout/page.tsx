@@ -22,7 +22,28 @@ type CheckoutFormState = {
 
 type CheckoutFormErrors = Partial<Record<keyof CheckoutFormState, string>>;
 type CheckoutStep = "details" | "review";
-type PaymentMethod = "stripe" | "paypal" | "bizum" | "transferencia" | null;
+type PaymentMethod = "stripe" | "paypal" | "bizum" | "bank_transfer" | null;
+type ManualInstructions = {
+  account_holder: string;
+  iban: string;
+  reference: string;
+  message: string;
+};
+
+function getPaymentMethodLabel(paymentMethod: Exclude<PaymentMethod, null>) {
+  switch (paymentMethod) {
+    case "stripe":
+      return "Stripe";
+    case "paypal":
+      return "PayPal";
+    case "bank_transfer":
+      return "Transferencia bancaria";
+    case "bizum":
+      return "Bizum";
+    default:
+      return paymentMethod;
+  }
+}
 
 export default function CheckoutPage() {
   const [session, setSession] = useState<SessionState>({
@@ -57,7 +78,9 @@ export default function CheckoutPage() {
     paymentId?: number;
     status: string;
     externalId?: string | null;
+    reference?: string | null;
   } | null>(null);
+  const [manualInstructions, setManualInstructions] = useState<ManualInstructions | null>(null);
   const confirmKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -155,6 +178,7 @@ export default function CheckoutPage() {
     setSubmitError(null);
     setSubmitSuccess(null);
     setPaymentFlowState(null);
+    setManualInstructions(null);
     confirmKeyRef.current = null;
   }
 
@@ -340,6 +364,7 @@ export default function CheckoutPage() {
     setSubmitError(null);
     setPaymentMessage(null);
     setPaymentFlowState(null);
+    setManualInstructions(null);
 
     try {
       const payload = {
@@ -370,11 +395,16 @@ export default function CheckoutPage() {
 
       setSubmitSuccess({
         orderId: data.order_id,
-        status: data.status,
+        status:
+          paymentMethod === "bank_transfer" ? "pendiente de transferencia" : data.status,
         paymentMethod,
       });
 
-      if (paymentMethod === "stripe" || paymentMethod === "paypal") {
+      if (
+        paymentMethod === "stripe" ||
+        paymentMethod === "paypal" ||
+        paymentMethod === "bank_transfer"
+      ) {
         const paymentRes = await fetch(`${CLIENT_API_URL}/api/payments/create`, {
           method: "POST",
           headers: {
@@ -400,7 +430,23 @@ export default function CheckoutPage() {
           paymentId: paymentData.payment?.id,
           status: paymentData.payment?.status ?? "pending",
           externalId: paymentData.payment?.external_id ?? null,
+          reference: paymentData.payment?.reference ?? null,
         });
+
+        if (paymentMethod === "bank_transfer") {
+          if (paymentData.provider_payload?.type !== "manual_instructions") {
+            throw new Error(
+              "La respuesta de transferencia bancaria no incluye instrucciones manuales.",
+            );
+          }
+
+          setManualInstructions(paymentData.provider_payload.instructions ?? null);
+          setPaymentMessage(
+            "Hemos recibido tu pedido, pero sigue pendiente de transferencia. Usa la referencia indicada y validaremos el pago manualmente.",
+          );
+          return;
+        }
+
         setPaymentMessage(
           paymentMethod === "stripe"
             ? "Pago Stripe iniciado. Redirigiendo a Stripe Checkout."
@@ -741,6 +787,7 @@ export default function CheckoutPage() {
                   setSubmitError(null);
                   setPaymentMessage(null);
                   setPaymentFlowState(null);
+                  setManualInstructions(null);
                 }}
                 style={{
                   padding: "0.75rem 1rem",
@@ -801,8 +848,8 @@ export default function CheckoutPage() {
                   {[
                     { value: "stripe", label: "Stripe" },
                     { value: "paypal", label: "PayPal" },
-                    { value: "bizum", label: "Bizum" },
-                    { value: "transferencia", label: "Transferencia bancaria" },
+                    { value: "bizum", label: "Bizum (Proximamente)", disabled: true },
+                    { value: "bank_transfer", label: "Transferencia bancaria" },
                   ].map((method) => (
                     <label
                       key={method.value}
@@ -817,9 +864,12 @@ export default function CheckoutPage() {
                             ? "1px solid #111"
                             : "1px solid #d4d4d4",
                         background: paymentMethod === method.value ? "#f5f5f5" : "#fff",
+                        opacity: method.disabled ? 0.55 : 1,
+                        cursor: method.disabled ? "not-allowed" : "pointer",
                       }}
                     >
                       <input
+                        disabled={method.disabled}
                         checked={paymentMethod === method.value}
                         name="paymentMethod"
                         onChange={() => {
@@ -827,6 +877,7 @@ export default function CheckoutPage() {
                           setSubmitError(null);
                           setPaymentMessage(null);
                           setPaymentFlowState(null);
+                          setManualInstructions(null);
                         }}
                         type="radio"
                       />
@@ -886,11 +937,11 @@ export default function CheckoutPage() {
                     <p style={{ margin: "0.5rem 0 0" }}>
                       Pedido #{submitSuccess.orderId} creado con estado{" "}
                       {submitSuccess.status}. Método seleccionado:{" "}
-                      {submitSuccess.paymentMethod}.
+                      {getPaymentMethodLabel(submitSuccess.paymentMethod)}.
                     </p>
                   </div>
                 ) : null}
-                {paymentFlowState ? (
+                {paymentFlowState && paymentFlowState.provider !== "bank_transfer" ? (
                   <div
                     style={{
                       marginTop: "0.75rem",
@@ -908,10 +959,56 @@ export default function CheckoutPage() {
                       {paymentFlowState.paymentId
                         ? `. Payment #${paymentFlowState.paymentId}`
                         : ""}
+                      {paymentFlowState.reference
+                        ? `. Referencia: ${paymentFlowState.reference}`
+                        : ""}
                       {paymentFlowState.externalId
                         ? `. External ID: ${paymentFlowState.externalId}`
                         : ""}
                     </p>
+                  </div>
+                ) : null}
+                {manualInstructions ? (
+                  <div
+                    style={{
+                      marginTop: "0.75rem",
+                      padding: "1rem",
+                      borderRadius: "12px",
+                      background: "#fff7ed",
+                      border: "1px solid #fdba74",
+                      color: "#9a3412",
+                    }}
+                  >
+                    <strong>Pedido recibido. Pendiente de transferencia.</strong>
+                    <p style={{ margin: "0.5rem 0 0" }}>
+                      Tu pedido aun no esta pagado. Realiza la transferencia usando
+                      la referencia exacta y validaremos el ingreso manualmente.
+                    </p>
+                    <dl
+                      style={{
+                        display: "grid",
+                        gap: "0.65rem",
+                        marginTop: "0.85rem",
+                      }}
+                    >
+                      <div>
+                        <dt style={{ fontWeight: 700 }}>Titular</dt>
+                        <dd style={{ margin: "0.2rem 0 0" }}>
+                          {manualInstructions.account_holder}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt style={{ fontWeight: 700 }}>IBAN</dt>
+                        <dd style={{ margin: "0.2rem 0 0" }}>{manualInstructions.iban}</dd>
+                      </div>
+                      <div>
+                        <dt style={{ fontWeight: 700 }}>Concepto / referencia</dt>
+                        <dd style={{ margin: "0.2rem 0 0" }}>
+                          {manualInstructions.reference}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p style={{ margin: "0.85rem 0 0" }}>{manualInstructions.message}</p>
                   </div>
                 ) : null}
                 {paymentMessage ? (
