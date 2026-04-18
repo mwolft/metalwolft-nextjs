@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useCart } from "@/components/cart/CartProvider";
 import { CLIENT_API_URL } from "@/lib/metalwolft";
 
 type QuoteResponse = {
@@ -22,6 +23,7 @@ export default function AddToCartForm({
   productId: number;
 }) {
   const router = useRouter();
+  const { refreshCart } = useCart();
   const [widthCm, setWidthCm] = useState("120");
   const [heightCm, setHeightCm] = useState("150");
   const [quantity, setQuantity] = useState("1");
@@ -85,6 +87,7 @@ export default function AddToCartForm({
         throw new Error(data.error?.message ?? "No se pudo añadir al carrito.");
       }
 
+      await refreshCart();
       router.push("/carrito");
       router.refresh();
     } catch (err) {

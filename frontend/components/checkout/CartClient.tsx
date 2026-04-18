@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { useCart } from "@/components/cart/CartProvider";
 import { CLIENT_API_URL, CartResponse } from "@/lib/metalwolft";
 
 export default function CartClient({
@@ -12,9 +13,10 @@ export default function CartClient({
   initialCart: CartResponse;
 }) {
   const router = useRouter();
-  const [cart, setCart] = useState(initialCart);
+  const { cart, setCart } = useCart();
   const [loadingItemId, setLoadingItemId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const currentCart = cart ?? initialCart;
 
   async function updateQuantity(itemId: number, quantity: number) {
     setLoadingItemId(itemId);
@@ -66,7 +68,7 @@ export default function CartClient({
     }
   }
 
-  if (!cart.items.length) {
+  if (!currentCart.items.length) {
     return (
       <section className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-8 text-center">
         <h2 className="text-xl font-semibold text-neutral-900">
@@ -88,7 +90,7 @@ export default function CartClient({
   return (
     <div className="grid gap-6 lg:grid-cols-[1.7fr_1fr]">
       <section className="grid gap-4">
-        {cart.items.map((item) => (
+        {currentCart.items.map((item) => (
           <article
             className="rounded-2xl border border-neutral-200 bg-white p-5"
             key={item.id}
@@ -140,15 +142,15 @@ export default function CartClient({
             <dl className="mt-4 grid gap-2 text-sm text-neutral-700">
               <div className="flex justify-between gap-4">
                 <dt>Subtotal productos</dt>
-                <dd>{item.pricing.products_subtotal} {cart.currency}</dd>
+                <dd>{item.pricing.products_subtotal} {currentCart.currency}</dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt>Recargos</dt>
-                <dd>{item.pricing.shipping_surcharge} {cart.currency}</dd>
+                <dd>{item.pricing.shipping_surcharge} {currentCart.currency}</dd>
               </div>
               <div className="flex justify-between gap-4 font-semibold text-neutral-950">
                 <dt>Total línea</dt>
-                <dd>{item.pricing.total} {cart.currency}</dd>
+                <dd>{item.pricing.total} {currentCart.currency}</dd>
               </div>
             </dl>
           </article>
@@ -162,33 +164,33 @@ export default function CartClient({
         <dl className="mt-4 grid gap-2 text-sm text-neutral-700">
           <div className="flex justify-between gap-4">
             <dt>Items</dt>
-            <dd>{cart.summary.items_count}</dd>
+            <dd>{currentCart.summary.items_count}</dd>
           </div>
           <div className="flex justify-between gap-4">
             <dt>Unidades</dt>
-            <dd>{cart.summary.total_quantity}</dd>
+            <dd>{currentCart.summary.total_quantity}</dd>
           </div>
           <div className="flex justify-between gap-4">
             <dt>Productos</dt>
-            <dd>{cart.summary.products_subtotal} {cart.currency}</dd>
+            <dd>{currentCart.summary.products_subtotal} {currentCart.currency}</dd>
           </div>
           <div className="flex justify-between gap-4">
             <dt>Envío base</dt>
-            <dd>{cart.summary.shipping_base} {cart.currency}</dd>
+            <dd>{currentCart.summary.shipping_base} {currentCart.currency}</dd>
           </div>
           <div className="flex justify-between gap-4">
             <dt>Recargos</dt>
-            <dd>{cart.summary.shipping_surcharge} {cart.currency}</dd>
+            <dd>{currentCart.summary.shipping_surcharge} {currentCart.currency}</dd>
           </div>
           <div className="flex justify-between gap-4 border-t border-neutral-200 pt-3 font-semibold text-neutral-950">
             <dt>Total</dt>
-            <dd>{cart.summary.total} {cart.currency}</dd>
+            <dd>{currentCart.summary.total} {currentCart.currency}</dd>
           </div>
         </dl>
 
-        {cart.rules_applied.length ? (
+        {currentCart.rules_applied.length ? (
           <p className="mt-4 text-xs text-neutral-500">
-            Reglas aplicadas: {cart.rules_applied.join(", ")}
+            Reglas aplicadas: {currentCart.rules_applied.join(", ")}
           </p>
         ) : null}
 

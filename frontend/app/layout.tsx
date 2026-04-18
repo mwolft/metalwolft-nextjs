@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 
 import Header from "../components/mw-layout/Header";
 import Footer from "../components/mw-layout/Footer";
+import { CartProvider } from "../components/cart/CartProvider";
 import "./globals.css";
 
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -26,11 +27,11 @@ export default function RootLayout({
 }) {
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const content = (
-    <>
+    <CartProvider>
       <Header />
       <main>{children}</main>
       <Footer />
-    </>
+    </CartProvider>
   );
 
   return (

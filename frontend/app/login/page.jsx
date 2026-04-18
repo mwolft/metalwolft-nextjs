@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { GoogleLogin } from "@react-oauth/google";
 
+import { PASSWORD_POLICY_HELP, getPasswordPolicyError } from "@/lib/passwordPolicy";
 
 export default function LoginPage() {
     const searchParams = useSearchParams();
@@ -70,15 +72,14 @@ export default function LoginPage() {
                 }
 
                 setSessionChecked(true);
-            } catch (e) {
-                console.warn("[Login] Session check failed.", e);
+            } catch (sessionError) {
+                console.warn("[Login] Session check failed.", sessionError);
                 setSessionChecked(true);
             }
         };
 
-        checkSession();
+        void checkSession();
     }, [googleClientId, searchParams]);
-
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -86,7 +87,7 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const res = await fetch(
+            const loginRes = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
                 {
                     method: "POST",
@@ -98,14 +99,46 @@ export default function LoginPage() {
                 }
             );
 
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.message || "Error al iniciar sesión");
+            if (loginRes.ok) {
+                redirectToResolvedNext("email-login");
+                return;
             }
 
-            redirectToResolvedNext("email-login");
-        } catch (err) {
-            setError(err.message);
+            if (loginRes.status !== 401) {
+                const loginData = await loginRes.json();
+                throw new Error(loginData.error || loginData.message || "Error al iniciar sesion");
+            }
+
+            const passwordPolicyError = getPasswordPolicyError(password);
+            if (passwordPolicyError) {
+                throw new Error(
+                    `${passwordPolicyError} Si es tu primera vez, necesitamos una contrasena valida para crear la cuenta automaticamente.`
+                );
+            }
+
+            console.info("[Login] Login returned 401. Attempting automatic signup.");
+            const registerRes = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    credentials: "include",
+                    body: JSON.stringify({ email, password }),
+                }
+            );
+
+            if (!registerRes.ok) {
+                const registerData = await registerRes.json();
+                throw new Error(
+                    registerData.error || registerData.message || "No se pudo crear la cuenta automaticamente"
+                );
+            }
+
+            redirectToResolvedNext("email-register");
+        } catch (submitError) {
+            setError(submitError.message);
         } finally {
             setLoading(false);
         }
@@ -116,7 +149,7 @@ export default function LoginPage() {
             <div style={styles.wrapper}>
                 <div style={styles.card}>
                     <h1 style={styles.title}>Accede a tu cuenta</h1>
-                    <p>Comprobando sesión...</p>
+                    <p>Comprobando sesion...</p>
                 </div>
             </div>
         );
@@ -127,7 +160,7 @@ export default function LoginPage() {
             <div style={styles.wrapper}>
                 <div style={styles.card}>
                     <h1 style={styles.title}>Accede a tu cuenta</h1>
-                    <p>Sesión detectada. Redirigiendo...</p>
+                    <p>Sesion detectada. Redirigiendo...</p>
                 </div>
             </div>
         );
@@ -173,19 +206,19 @@ export default function LoginPage() {
                                 }
 
                                 redirectToResolvedNext("google-login");
-                            } catch (err) {
-                                console.warn("[Login] Google login flow failed.", err);
-                                setError("Error al iniciar sesión con Google");
+                            } catch (googleError) {
+                                console.warn("[Login] Google login flow failed.", googleError);
+                                setError("Error al iniciar sesion con Google");
                             }
                         }}
                         onError={() => {
                             console.warn("[Login] GoogleLogin onError fired before backend POST.");
-                            setError("Error al iniciar sesión con Google");
+                            setError("Error al iniciar sesion con Google");
                         }}
                     />
                 ) : null}
 
-                <div style={styles.separator}>— o —</div>
+                <div style={styles.separator}>- o -</div>
 
                 <form onSubmit={handleSubmit} style={styles.form}>
                     <label style={styles.label}>
@@ -199,8 +232,9 @@ export default function LoginPage() {
                         />
                     </label>
 
+                    <p style={styles.passwordHint}>{PASSWORD_POLICY_HELP}</p>
                     <label style={styles.label}>
-                        Contraseña
+                        Contrasena
                         <input
                             type="password"
                             value={password}
@@ -218,14 +252,14 @@ export default function LoginPage() {
                 </form>
 
                 <p style={styles.info}>
-                    ¿No tienes cuenta?
+                    No tienes cuenta?
                     <br />
-                    <strong>Se creará automáticamente si es tu primera vez</strong>
+                    <strong>Se creara automaticamente si es tu primera vez</strong>
                 </p>
 
-                <a href="#" style={styles.forgot}>
-                    ¿Olvidaste la contraseña?
-                </a>
+                <Link href="/forgot-password" style={styles.forgot}>
+                    Olvidaste la contrasena?
+                </Link>
             </div>
         </div>
     );
@@ -251,27 +285,17 @@ const styles = {
     title: {
         marginBottom: 20,
     },
-    googleButton: {
-        width: "100%",
-        padding: 12,
-        background: "#4285F4",
-        color: "#fff",
-        border: "none",
-        borderRadius: 4,
-        cursor: "pointer",
-        marginBottom: 12,
-    },
-    googleSubtext: {
-        display: "block",
-        fontSize: 12,
-        opacity: 0.9,
-    },
     separator: {
         margin: "16px 0",
         color: "#888",
     },
     form: {
         textAlign: "left",
+    },
+    passwordHint: {
+        marginBottom: 8,
+        fontSize: 12,
+        color: "#525252",
     },
     label: {
         display: "block",

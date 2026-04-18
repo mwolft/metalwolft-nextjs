@@ -10,6 +10,8 @@ class User(db.Model):
 
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=True)
+    password_reset_token_hash = db.Column(db.String(64), nullable=True, index=True)
+    password_reset_expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     is_active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False)

@@ -1,6 +1,7 @@
 import styles from './Header.module.css'
 import Link from 'next/link'
 import AuthNav from './AuthNav'
+import CartNav from './CartNav'
 
 export default function Header() {
   return (
@@ -17,9 +18,7 @@ export default function Header() {
 
         <div className={styles.actions}>
           <AuthNav />
-          <Link href="/carrito" className={styles.cart}>
-            Carrito
-          </Link>
+          <CartNav />
         </div>
       </div>
     </header>

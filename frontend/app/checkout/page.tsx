@@ -22,7 +22,12 @@ type CheckoutFormState = {
 
 type CheckoutFormErrors = Partial<Record<keyof CheckoutFormState, string>>;
 type CheckoutStep = "details" | "review";
-type PaymentMethod = "stripe" | "paypal" | "bizum" | "bank_transfer" | null;
+type PaymentMethod = "stripe" | "paypal" | "bank_transfer" | null;
+type PaymentOption = {
+  value: Exclude<PaymentMethod, null>;
+  label: string;
+  disabled?: boolean;
+};
 type ManualInstructions = {
   account_holder: string;
   iban: string;
@@ -38,12 +43,16 @@ function getPaymentMethodLabel(paymentMethod: Exclude<PaymentMethod, null>) {
       return "PayPal";
     case "bank_transfer":
       return "Transferencia bancaria";
-    case "bizum":
-      return "Bizum";
     default:
       return paymentMethod;
   }
 }
+
+const paymentOptions: PaymentOption[] = [
+  { value: "stripe", label: "Stripe" },
+  { value: "paypal", label: "PayPal" },
+  { value: "bank_transfer", label: "Transferencia bancaria" },
+];
 
 export default function CheckoutPage() {
   const [session, setSession] = useState<SessionState>({
@@ -463,9 +472,7 @@ export default function CheckoutPage() {
           status: "pending_manual",
         });
         setPaymentMessage(
-          paymentMethod === "bizum"
-            ? "Bizum queda seleccionado. La operativa real de cobro será el siguiente paso."
-            : "La transferencia bancaria queda seleccionada. La operativa real será el siguiente paso.",
+          "La transferencia bancaria queda seleccionada. La operativa real será el siguiente paso.",
         );
       }
     } catch (error) {
@@ -845,12 +852,7 @@ export default function CheckoutPage() {
               >
                 <h3 style={{ marginTop: 0 }}>Metodo de pago</h3>
                 <div style={{ display: "grid", gap: "0.75rem" }}>
-                  {[
-                    { value: "stripe", label: "Stripe" },
-                    { value: "paypal", label: "PayPal" },
-                    { value: "bizum", label: "Bizum (Proximamente)", disabled: true },
-                    { value: "bank_transfer", label: "Transferencia bancaria" },
-                  ].map((method) => (
+                  {paymentOptions.map((method) => (
                     <label
                       key={method.value}
                       style={{

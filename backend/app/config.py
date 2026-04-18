@@ -11,6 +11,9 @@ class Config:
 
     JWT_SECRET_KEY = "metalwolft_super_secret_jwt_key_2026_secure"
     JWT_ALGORITHM = "HS256"
+    PASSWORD_RESET_TOKEN_TTL_MINUTES = int(
+        os.getenv("PASSWORD_RESET_TOKEN_TTL_MINUTES", "60")
+    )
 
     GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
@@ -59,6 +62,16 @@ class Config:
         "BANK_TRANSFER_INSTRUCTIONS",
         "Realiza la transferencia indicando la referencia exacta. Validaremos el pago manualmente antes de poner el pedido en produccion.",
     )
+    FRONTEND_BASE_URL = os.getenv(
+        "FRONTEND_BASE_URL",
+        "https://animated-tribble-v6pjw9j6pp4rhwwrg-3000.app.github.dev",
+    )
+    SMTP_HOST = os.getenv("SMTP_HOST")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+    SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL")
+    SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 
     CORS_ALLOWED_ORIGINS = [
         r"https://.*-3000\.app\.github\.dev",

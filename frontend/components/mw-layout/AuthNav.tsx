@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { useCart } from "@/components/cart/CartProvider";
 import { CLIENT_API_URL } from "@/lib/metalwolft";
 
 export default function AuthNav() {
   const router = useRouter();
+  const cart = useCart();
   const [sessionChecked, setSessionChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -47,6 +49,14 @@ export default function AuthNav() {
       });
     } finally {
       setIsAuthenticated(false);
+      if (typeof cart.clearCart === "function") {
+        cart.clearCart();
+      }
+      try {
+        await cart.refreshCart();
+      } catch {
+        // Ignore cart refresh errors after logout and keep the local cart empty.
+      }
       router.push("/");
       router.refresh();
     }

@@ -33,6 +33,7 @@ class PaymentService:
     FINAL_ORDER_STATUSES = {"paid", "cancelled", "failed"}
     MANUAL_PROVIDERS = {"bank_transfer"}
     MANUAL_SETTLEMENT_BLOCKED_ORDER_STATUSES = {"paid", "cancelled", "failed"}
+    STRIPE_BACKED_PROVIDERS = {"stripe", "bizum"}
 
     @staticmethod
     def get_order_for_user(*, order_id: int, user_id: int) -> Order:
@@ -119,10 +120,11 @@ class PaymentService:
                 "status": "pending",
             }
 
-            if provider == "stripe":
+            if provider in PaymentService.STRIPE_BACKED_PROVIDERS:
                 session = PaymentService._create_stripe_checkout_session(
                     order=order,
                     payment=payment,
+                    provider=provider,
                 )
                 payment.external_id = session.id
                 external_id = session.id
@@ -439,7 +441,7 @@ class PaymentService:
             ) from exc
 
     @staticmethod
-    def _create_stripe_checkout_session(*, order: Order, payment: Payment):
+    def _create_stripe_checkout_session(*, order: Order, payment: Payment, provider: str):
         if stripe is None:
             raise PaymentError(
                 code="STRIPE_NOT_INSTALLED",
@@ -493,34 +495,38 @@ class PaymentService:
                 status_code=400,
             ) from exc
 
-        try:
-            return stripe.checkout.Session.create(
-                mode="payment",
-                success_url=success_url,
-                cancel_url=cancel_url,
-                customer_email=order.customer_email,
-                metadata={
-                    "order_id": str(order.id),
-                    "payment_id": str(payment.id),
-                },
-                line_items=[
-                    {
-                        "price_data": {
-                            "currency": str(order.currency).lower(),
-                            "product_data": {
-                                "name": f"Pedido MetalWolft #{order.id}",
-                            },
-                            "unit_amount": amount_total,
+        session_kwargs = {
+            "mode": "payment",
+            "success_url": success_url,
+            "cancel_url": cancel_url,
+            "customer_email": order.customer_email,
+            "metadata": {
+                "order_id": str(order.id),
+                "payment_id": str(payment.id),
+                "provider": provider,
+            },
+            "line_items": [
+                {
+                    "price_data": {
+                        "currency": str(order.currency).lower(),
+                        "product_data": {
+                            "name": f"Pedido MetalWolft #{order.id}",
                         },
-                        "quantity": 1,
-                    }
-                ],
-            )
+                        "unit_amount": amount_total,
+                    },
+                    "quantity": 1,
+                }
+            ],
+        }
+
+        try:
+            return stripe.checkout.Session.create(**session_kwargs)
         except Exception as exc:
             logger.exception(
-                "stripe_checkout_session_create_failed order_id=%s payment_id=%s",
+                "stripe_checkout_session_create_failed order_id=%s payment_id=%s provider=%s",
                 order.id,
                 payment.id,
+                provider,
             )
             raise PaymentError(
                 code="STRIPE_SESSION_ERROR",
@@ -671,7 +677,10 @@ class PaymentService:
             payment = (
                 Payment.query
                 .options(selectinload(Payment.order))
-                .filter_by(provider="stripe", external_id=external_id)
+                .filter(
+                    Payment.provider.in_(tuple(PaymentService.STRIPE_BACKED_PROVIDERS)),
+                    Payment.external_id == external_id,
+                )
                 .with_for_update()
                 .first()
             )
@@ -751,7 +760,10 @@ class PaymentService:
             payment = (
                 Payment.query
                 .options(selectinload(Payment.order))
-                .filter_by(provider="stripe", external_id=external_id)
+                .filter(
+                    Payment.provider.in_(tuple(PaymentService.STRIPE_BACKED_PROVIDERS)),
+                    Payment.external_id == external_id,
+                )
                 .with_for_update()
                 .first()
             )
