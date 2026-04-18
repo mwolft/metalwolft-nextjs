@@ -1,10 +1,11 @@
 from flask import flash
 from flask_admin.actions import action
 from flask_admin.contrib.sqla import ModelView
-from markupsafe import Markup
+from markupsafe import Markup, escape
 from wtforms import FileField
-from app.models.cart import Cart, CartItem
+
 from app.extensions import db
+from app.models.cart import Cart, CartItem
 from app.models.order import Order
 from app.models.payment import Payment
 from app.models.product import Category, Product, ProductImage
@@ -61,6 +62,80 @@ def _populate_product_image_from_upload(form, model):
 
     if old_public_id and old_public_id != model.public_id:
         delete_image(old_public_id)
+
+
+def _get_order_item_configuration(model):
+    configuration = model.configuration_snapshot or {}
+
+    return {
+        "width_cm": configuration.get("width_cm", model.width_cm),
+        "height_cm": configuration.get("height_cm", model.height_cm),
+        "quantity": configuration.get("quantity", model.quantity),
+        "anchoring_type": configuration.get("anchoring_type"),
+        "color": configuration.get("color"),
+    }
+
+
+def _format_anchoring_type(value):
+    anchoring_labels = {
+        "interior_holes": "Sin obra con agujeros interiores",
+        "frontal_holes": "Sin obra con agujeros frontales",
+        "plates": "Sin obra con pletinas",
+        "side_claws": "Con obra con garras metalicas laterales",
+        "front_claws": "Con obra con garras frontales",
+    }
+
+    if not value:
+        return "-"
+
+    return anchoring_labels.get(value, value)
+
+
+def _format_color(value):
+    color_labels = {
+        "white": "Blanco",
+        "black": "Negro",
+        "anthracite": "Antracita",
+        "green": "Verde",
+    }
+
+    if not value:
+        return "-"
+
+    return color_labels.get(value, value)
+
+
+def _format_money(amount, currency):
+    return f"{amount} {currency or 'EUR'}"
+
+
+def _render_order_items_summary(items):
+    if not items:
+        return "-"
+
+    blocks = []
+
+    for item in items:
+        configuration = _get_order_item_configuration(item)
+        product_name = escape(item.product_name_snapshot or f"Producto #{item.product_id}")
+        dimensions = f"{configuration['width_cm']} x {configuration['height_cm']} cm"
+        quantity = escape(str(configuration["quantity"]))
+        anchoring = escape(_format_anchoring_type(configuration["anchoring_type"]))
+        color = escape(_format_color(configuration["color"]))
+
+        blocks.append(
+            (
+                '<div style="margin-bottom:10px;padding:10px 12px;'
+                'border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;">'
+                f'<div style="font-weight:600;margin-bottom:4px;">{product_name}</div>'
+                f'<div>{escape(dimensions)} | Cantidad: {quantity}</div>'
+                f'<div>Anclaje: {anchoring}</div>'
+                f'<div>Color: {color}</div>'
+                "</div>"
+            )
+        )
+
+    return Markup("".join(blocks))
 
 
 class UserAdmin(ModelView):
@@ -203,7 +278,33 @@ class ProductImageAdmin(ModelView):
 
 
 class OrderAdmin(ModelView):
-    column_list = ("id", "user_id", "total", "status", "created_at", "items")
+    column_list = (
+        "id",
+        "customer_name",
+        "customer_email",
+        "status",
+        "total_display",
+        "created_at",
+        "items_summary",
+    )
+    column_details_list = (
+        "id",
+        "user_id",
+        "customer_name",
+        "customer_email",
+        "customer_phone",
+        "status",
+        "total_display",
+        "created_at",
+        "items_summary",
+        "shipping_name",
+        "shipping_address_line1",
+        "shipping_address_line2",
+        "shipping_city",
+        "shipping_postal_code",
+        "shipping_country",
+        "rules_applied",
+    )
     column_filters = ("status", "currency", "created_at")
     column_searchable_list = ("id", "customer_name", "customer_email")
     column_default_sort = ("created_at", True)
@@ -214,10 +315,26 @@ class OrderAdmin(ModelView):
     column_labels = {
         "id": "ID",
         "user_id": "Usuario",
-        "total": "Total",
+        "customer_name": "Cliente",
+        "customer_email": "Email",
+        "customer_phone": "Telefono",
+        "total_display": "Total",
         "status": "Estado",
         "created_at": "Fecha",
+        "items_summary": "Lineas del pedido",
+        "shipping_name": "Destinatario",
+        "shipping_address_line1": "Direccion",
+        "shipping_address_line2": "Direccion 2",
+        "shipping_city": "Ciudad",
+        "shipping_postal_code": "Codigo postal",
+        "shipping_country": "Pais",
+        "rules_applied": "Reglas aplicadas",
     }
+    column_formatters = {
+        "total_display": lambda _v, _c, model, _p: _format_money(model.total, model.currency),
+        "items_summary": lambda _v, _c, model, _p: _render_order_items_summary(model.items),
+    }
+    column_formatters_detail = column_formatters
 
 
 class OrderItemAdmin(ModelView):
@@ -227,30 +344,67 @@ class OrderItemAdmin(ModelView):
         "product_name_snapshot",
         "dimensions",
         "quantity",
+        "anchoring_display",
+        "color_display",
         "options_display",
         "total",
     )
-
+    column_details_list = (
+        "id",
+        "order_id",
+        "product_name_snapshot",
+        "dimensions",
+        "quantity",
+        "anchoring_display",
+        "color_display",
+        "options_display",
+        "total",
+        "rules_applied",
+        "created_at",
+    )
     can_create = False
     can_edit = False
     can_delete = False
     can_view_details = True
-
     column_labels = {
         "id": "ID",
         "order_id": "Pedido",
         "product_name_snapshot": "Producto",
         "dimensions": "Dimensiones",
         "quantity": "Cantidad",
+        "anchoring_display": "Anclaje",
+        "color_display": "Color",
         "options_display": "Opciones",
         "total": "Total",
+        "rules_applied": "Reglas aplicadas",
+        "created_at": "Fecha",
     }
-
-    # 🔥 columnas virtuales
     column_formatters = {
-        "dimensions": lambda v, c, m, p: f"{m.width_cm} x {m.height_cm} cm",
-        "options_display": lambda v, c, m, p: OrderItemAdmin.format_options(m),
+        "dimensions": lambda _v, _c, model, _p: OrderItemAdmin.format_dimensions(model),
+        "anchoring_display": lambda _v, _c, model, _p: OrderItemAdmin.format_anchoring(model),
+        "color_display": lambda _v, _c, model, _p: OrderItemAdmin.format_color(model),
+        "options_display": lambda _v, _c, model, _p: OrderItemAdmin.format_options(model),
+        "total": lambda _v, _c, model, _p: _format_money(
+            model.total,
+            model.order.currency if model.order else "EUR",
+        ),
     }
+    column_formatters_detail = column_formatters
+
+    @staticmethod
+    def format_dimensions(model):
+        configuration = _get_order_item_configuration(model)
+        return f"{configuration['width_cm']} x {configuration['height_cm']} cm"
+
+    @staticmethod
+    def format_anchoring(model):
+        configuration = _get_order_item_configuration(model)
+        return _format_anchoring_type(configuration["anchoring_type"])
+
+    @staticmethod
+    def format_color(model):
+        configuration = _get_order_item_configuration(model)
+        return _format_color(configuration["color"])
 
     @staticmethod
     def format_options(model):
@@ -258,7 +412,7 @@ class OrderItemAdmin(ModelView):
             return "-"
 
         return ", ".join(
-            f"{opt['option']} (+{opt['price']}€)"
+            f"{opt.get('option', '-')} (+{opt.get('price', '0')} EUR)"
             for opt in model.options_snapshot
         )
 

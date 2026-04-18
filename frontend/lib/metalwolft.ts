@@ -51,6 +51,7 @@ export type OrderResponse = {
     id: number;
     status: string;
     currency: string;
+    created_at: string | null;
     customer: {
       name: string;
       email: string;
@@ -73,13 +74,23 @@ export type OrderResponse = {
     rules_applied: string[];
     payments: Array<{
       id: number;
-      order_id: number;
-      method: string;
-      status: string;
       provider: string;
-      provider_reference: string | null;
+      status: string;
       amount: string;
+      currency: string;
+      external_id: string | null;
+      reference: string | null;
     }>;
     items: CartItem[];
   };
+};
+
+export type ProfileResponse = {
+  email: string;
+  is_admin: boolean;
+  created_at: string;
+};
+
+export type OrdersListResponse = {
+  orders: OrderResponse["order"][];
 };

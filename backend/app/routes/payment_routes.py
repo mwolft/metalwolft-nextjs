@@ -110,6 +110,19 @@ def get_order(order_id: int):
     return jsonify(CheckoutService.serialize_order(order)), 200
 
 
+@orders_bp.get("")
+@login_required
+def list_orders():
+    orders = PaymentService.get_orders_for_user(user_id=g.current_user.id)
+
+    return jsonify({
+        "orders": [
+            CheckoutService.serialize_order(order)["order"]
+            for order in orders
+        ]
+    }), 200
+
+
 @webhooks_bp.post("/stripe")
 def stripe_webhook():
     payload = request.get_data()

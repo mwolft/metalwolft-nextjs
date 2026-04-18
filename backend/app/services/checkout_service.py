@@ -140,6 +140,7 @@ class CheckoutService:
                 "id": order.id,
                 "status": order.status,
                 "currency": order.currency,
+                "created_at": order.created_at.isoformat() if order.created_at else None,
                 "customer": {
                     "name": order.customer_name,
                     "email": order.customer_email,

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { useCart } from "@/components/cart/CartProvider";
 import { getAnchoringLabel, getColorLabel } from "@/lib/productConfiguration";
@@ -38,6 +39,7 @@ export default function CartClient({
 
       setCart(data);
       router.refresh();
+      toast.success("Cantidad actualizada");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido.");
     } finally {
@@ -62,6 +64,7 @@ export default function CartClient({
 
       setCart(data);
       router.refresh();
+      toast.success("Producto eliminado del carrito");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido.");
     } finally {

@@ -73,6 +73,17 @@
   gap: 1rem;
 }
 
+.accountLinks {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.profileLink {
+  text-decoration: none;
+  color: inherit;
+}
+
 .actions button {
   background: none;
   border: none;

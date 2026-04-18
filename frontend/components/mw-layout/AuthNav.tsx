@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart/CartProvider";
 import { CLIENT_API_URL } from "@/lib/metalwolft";
 
+import styles from "./Header.module.css";
+
 export default function AuthNav() {
   const router = useRouter();
   const cart = useCart();
@@ -67,12 +69,17 @@ export default function AuthNav() {
   }
 
   if (!isAuthenticated) {
-    return <Link href="/login">Iniciar sesión</Link>;
+    return <Link href="/login">Iniciar sesion</Link>;
   }
 
   return (
-    <button onClick={() => void handleLogout()} type="button">
-      Cerrar sesión
-    </button>
+    <div className={styles.accountLinks}>
+      <Link href="/perfil" className={styles.profileLink}>
+        Perfil
+      </Link>
+      <button onClick={() => void handleLogout()} type="button">
+        Cerrar sesion
+      </button>
+    </div>
   );
 }

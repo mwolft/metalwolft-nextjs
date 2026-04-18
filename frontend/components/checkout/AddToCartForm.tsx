@@ -24,6 +24,12 @@ type QuoteResponse = {
   currency: string;
 };
 
+const INITIAL_WIDTH_CM = "120";
+const INITIAL_HEIGHT_CM = "150";
+const INITIAL_QUANTITY = "1";
+const INITIAL_ANCHORING_TYPE: AnchoringType = "interior_holes";
+const INITIAL_COLOR: ProductColor = "white";
+
 export default function AddToCartForm({
   productId,
 }: {
@@ -31,14 +37,24 @@ export default function AddToCartForm({
 }) {
   const router = useRouter();
   const { refreshCart } = useCart();
-  const [widthCm, setWidthCm] = useState("120");
-  const [heightCm, setHeightCm] = useState("150");
-  const [quantity, setQuantity] = useState("1");
-  const [anchoringType, setAnchoringType] = useState<AnchoringType>("interior_holes");
-  const [color, setColor] = useState<ProductColor>("white");
+  const [widthCm, setWidthCm] = useState(INITIAL_WIDTH_CM);
+  const [heightCm, setHeightCm] = useState(INITIAL_HEIGHT_CM);
+  const [quantity, setQuantity] = useState(INITIAL_QUANTITY);
+  const [anchoringType, setAnchoringType] = useState<AnchoringType>(INITIAL_ANCHORING_TYPE);
+  const [color, setColor] = useState<ProductColor>(INITIAL_COLOR);
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function resetForm() {
+    setWidthCm(INITIAL_WIDTH_CM);
+    setHeightCm(INITIAL_HEIGHT_CM);
+    setQuantity(INITIAL_QUANTITY);
+    setAnchoringType(INITIAL_ANCHORING_TYPE);
+    setColor(INITIAL_COLOR);
+    setQuote(null);
+    setError(null);
+  }
 
   function buildConfiguration() {
     return {
@@ -105,6 +121,7 @@ export default function AddToCartForm({
       }
 
       await refreshCart();
+      resetForm();
       toast.success("Producto anadido al carrito", {
         action: {
           label: "Ver carrito",

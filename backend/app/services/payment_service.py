@@ -36,6 +36,19 @@ class PaymentService:
     STRIPE_BACKED_PROVIDERS = {"stripe", "bizum"}
 
     @staticmethod
+    def get_orders_for_user(*, user_id: int) -> list[Order]:
+        return (
+            Order.query
+            .options(
+                selectinload(Order.payments),
+                selectinload(Order.items),
+            )
+            .filter_by(user_id=user_id)
+            .order_by(Order.created_at.desc(), Order.id.desc())
+            .all()
+        )
+
+    @staticmethod
     def get_order_for_user(*, order_id: int, user_id: int) -> Order:
         order = (
             Order.query
