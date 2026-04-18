@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useCart } from "@/components/cart/CartProvider";
+import { getAnchoringLabel, getColorLabel } from "@/lib/productConfiguration";
 import { CLIENT_API_URL, CartResponse } from "@/lib/metalwolft";
 
 export default function CartClient({
@@ -102,6 +103,12 @@ export default function CartClient({
                 </h2>
                 <p className="mt-1 text-sm text-neutral-600">
                   {item.configuration.width_cm} x {item.configuration.height_cm} cm
+                </p>
+                <p className="mt-1 text-sm text-neutral-600">
+                  Anclaje: {getAnchoringLabel(item.configuration.anchoring_type)}
+                </p>
+                <p className="mt-1 text-sm text-neutral-600">
+                  Color: {getColorLabel(item.configuration.color)}
                 </p>
                 <p className="mt-1 text-sm text-neutral-600">
                   Cantidad actual: {item.configuration.quantity}

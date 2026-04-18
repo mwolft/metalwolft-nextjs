@@ -2,8 +2,15 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { useCart } from "@/components/cart/CartProvider";
+import {
+  anchoringOptions,
+  colorOptions,
+  type AnchoringType,
+  type ProductColor,
+} from "@/lib/productConfiguration";
 import { CLIENT_API_URL } from "@/lib/metalwolft";
 
 type QuoteResponse = {
@@ -27,9 +34,21 @@ export default function AddToCartForm({
   const [widthCm, setWidthCm] = useState("120");
   const [heightCm, setHeightCm] = useState("150");
   const [quantity, setQuantity] = useState("1");
+  const [anchoringType, setAnchoringType] = useState<AnchoringType>("interior_holes");
+  const [color, setColor] = useState<ProductColor>("white");
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function buildConfiguration() {
+    return {
+      width_cm: Number(widthCm),
+      height_cm: Number(heightCm),
+      anchoring_type: anchoringType,
+      color,
+      options: [],
+    };
+  }
 
   async function handleQuote() {
     setBusy(true);
@@ -42,9 +61,8 @@ export default function AddToCartForm({
         credentials: "include",
         body: JSON.stringify({
           product_id: productId,
-          width_cm: Number(widthCm),
-          height_cm: Number(heightCm),
           quantity: Number(quantity),
+          configuration: buildConfiguration(),
         }),
       });
 
@@ -75,21 +93,24 @@ export default function AddToCartForm({
         credentials: "include",
         body: JSON.stringify({
           product_id: productId,
-          width_cm: Number(widthCm),
-          height_cm: Number(heightCm),
           quantity: Number(quantity),
+          configuration: buildConfiguration(),
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error?.message ?? "No se pudo añadir al carrito.");
+        throw new Error(data.error?.message ?? "No se pudo anadir al carrito.");
       }
 
       await refreshCart();
-      router.push("/carrito");
-      router.refresh();
+      toast.success("Producto anadido al carrito", {
+        action: {
+          label: "Ver carrito",
+          onClick: () => router.push("/carrito"),
+        },
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido.");
     } finally {
@@ -139,6 +160,38 @@ export default function AddToCartForm({
           />
         </label>
 
+        <label className="grid gap-1">
+          <span className="text-sm font-medium text-neutral-700">Tipo de anclaje</span>
+          <select
+            className="rounded-xl border border-neutral-300 px-4 py-3"
+            name="anchoringType"
+            onChange={(event) => setAnchoringType(event.target.value as AnchoringType)}
+            value={anchoringType}
+          >
+            {anchoringOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="grid gap-1">
+          <span className="text-sm font-medium text-neutral-700">Color</span>
+          <select
+            className="rounded-xl border border-neutral-300 px-4 py-3"
+            name="color"
+            onChange={(event) => setColor(event.target.value as ProductColor)}
+            value={color}
+          >
+            {colorOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <div className="flex flex-wrap gap-3">
           <button
             className="rounded-xl border border-neutral-300 px-4 py-3 text-sm font-medium text-neutral-900"
@@ -152,7 +205,7 @@ export default function AddToCartForm({
             disabled={busy}
             type="submit"
           >
-            {busy ? "Guardando..." : "Añadir al carrito"}
+            {busy ? "Guardando..." : "Anadir al carrito"}
           </button>
         </div>
 
@@ -174,11 +227,11 @@ export default function AddToCartForm({
               <dd>{quote.pricing.products_subtotal} {quote.currency}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt>Envío base</dt>
+              <dt>Envio base</dt>
               <dd>{quote.pricing.shipping_base} {quote.currency}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt>Recargos de envío</dt>
+              <dt>Recargos de envio</dt>
               <dd>{quote.pricing.shipping_surcharge} {quote.currency}</dd>
             </div>
             <div className="flex justify-between gap-4 border-t border-neutral-200 pt-2 font-semibold text-neutral-950">

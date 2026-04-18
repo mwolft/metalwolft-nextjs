@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { CLIENT_API_URL, CartResponse } from "@/lib/metalwolft";
+import { getAnchoringLabel, getColorLabel } from "@/lib/productConfiguration";
 
 type SessionState =
   | { status: "loading"; user: null }
@@ -293,6 +294,12 @@ export default function CheckoutPage() {
                   <h3 style={{ margin: 0 }}>{item.product.name}</h3>
                   <p style={{ margin: "0.35rem 0 0", color: "#525252" }}>
                     {item.configuration.width_cm} x {item.configuration.height_cm} cm
+                  </p>
+                  <p style={{ margin: "0.35rem 0 0", color: "#525252" }}>
+                    Anclaje: {getAnchoringLabel(item.configuration.anchoring_type)}
+                  </p>
+                  <p style={{ margin: "0.35rem 0 0", color: "#525252" }}>
+                    Color: {getColorLabel(item.configuration.color)}
                   </p>
                   <p style={{ margin: "0.35rem 0 0", color: "#525252" }}>
                     Cantidad: {item.configuration.quantity}

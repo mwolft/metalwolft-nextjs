@@ -7,7 +7,14 @@ from sqlalchemy.orm import selectinload
 
 from app.extensions import db
 from app.models.cart import Cart, CartItem
-from app.services.pricing_service import PricingError, PricingService
+from app.services.pricing_service import (
+    ALLOWED_COLORS,
+    ANCHORING_SURCHARGES,
+    DEFAULT_ANCHORING_TYPE,
+    DEFAULT_COLOR,
+    PricingError,
+    PricingService,
+)
 
 
 class CartNotFoundError(Exception):
@@ -73,6 +80,8 @@ class CartService:
         raw_width_cm = configuration.get("width_cm")
         raw_height_cm = configuration.get("height_cm")
         raw_options = configuration.get("options", [])
+        raw_anchoring_type = configuration.get("anchoring_type", DEFAULT_ANCHORING_TYPE)
+        raw_color = configuration.get("color", DEFAULT_COLOR)
 
         normalized_width_cm = int(raw_width_cm)
         normalized_height_cm = int(raw_height_cm)
@@ -84,10 +93,20 @@ class CartService:
             raise ValueError("height_cm must be greater than 0.")
 
         normalized_options = CartService._normalize_options(raw_options)
+        normalized_anchoring_type = str(raw_anchoring_type).strip()
+        normalized_color = str(raw_color).strip()
+
+        if normalized_anchoring_type not in ANCHORING_SURCHARGES:
+            raise ValueError("anchoring_type is invalid.")
+
+        if normalized_color not in ALLOWED_COLORS:
+            raise ValueError("color is invalid.")
 
         return {
             "width_cm": normalized_width_cm,
             "height_cm": normalized_height_cm,
+            "anchoring_type": normalized_anchoring_type,
+            "color": normalized_color,
             "options": normalized_options,
         }
 
@@ -169,8 +188,7 @@ class CartService:
 
         PricingService.quote(
             product_id=product_id,
-            width_cm=normalized_width_cm,
-            height_cm=normalized_height_cm,
+            configuration=normalized_configuration,
             quantity=quantity,
         )
 
@@ -214,17 +232,30 @@ class CartService:
         next_width_cm = item.width_cm if width_cm is None else width_cm
         next_height_cm = item.height_cm if height_cm is None else height_cm
         next_quantity = item.quantity if quantity is None else quantity
+        next_configuration = CartService.normalize_configuration(
+            configuration={
+                **(item.configuration or {}),
+                "width_cm": next_width_cm,
+                "height_cm": next_height_cm,
+            },
+            width_cm=next_width_cm,
+            height_cm=next_height_cm,
+        )
+        next_configuration_hash = CartService.generate_configuration_hash(
+            configuration=next_configuration
+        )
 
         PricingService.quote(
             product_id=next_product_id,
-            width_cm=next_width_cm,
-            height_cm=next_height_cm,
+            configuration=next_configuration,
             quantity=next_quantity,
         )
 
         item.product_id = next_product_id
         item.width_cm = next_width_cm
         item.height_cm = next_height_cm
+        item.configuration = next_configuration
+        item.configuration_hash = next_configuration_hash
         item.quantity = next_quantity
 
         db.session.commit()
@@ -274,10 +305,14 @@ class CartService:
         total_quantity = 0
 
         for item in cart.items:
-            quote = PricingService.quote(
-                product_id=item.product_id,
+            configuration = CartService.normalize_configuration(
+                configuration=item.configuration,
                 width_cm=item.width_cm,
                 height_cm=item.height_cm,
+            )
+            quote = PricingService.quote(
+                product_id=item.product_id,
+                configuration=configuration,
                 quantity=item.quantity,
             )
             item_products_subtotal = Decimal(quote["pricing"]["products_subtotal"])
@@ -288,8 +323,7 @@ class CartService:
                 "id": item.id,
                 "product": quote["product"],
                 "configuration": {
-                    "width_cm": item.width_cm,
-                    "height_cm": item.height_cm,
+                    **configuration,
                     "quantity": item.quantity,
                 },
                 "pricing": {

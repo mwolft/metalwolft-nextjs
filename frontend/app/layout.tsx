@@ -1,6 +1,7 @@
 // app/layout.tsx
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
+import { Toaster } from "sonner";
 
 import Header from "../components/mw-layout/Header";
 import Footer from "../components/mw-layout/Footer";
@@ -31,6 +32,7 @@ export default function RootLayout({
       <Header />
       <main>{children}</main>
       <Footer />
+      <Toaster position="top-right" richColors closeButton />
     </CartProvider>
   );
 

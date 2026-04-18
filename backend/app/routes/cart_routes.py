@@ -29,6 +29,13 @@ def _extract_configuration(data: dict):
     return CartService.normalize_configuration(
         width_cm=int(data.get("width_cm")),
         height_cm=int(data.get("height_cm")),
+        configuration={
+            "width_cm": int(data.get("width_cm")),
+            "height_cm": int(data.get("height_cm")),
+            "anchoring_type": data.get("anchoring_type"),
+            "color": data.get("color"),
+            "options": data.get("options", []),
+        },
     )
 
 

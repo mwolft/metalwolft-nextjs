@@ -22,6 +22,8 @@ export type CartItem = {
   configuration: {
     width_cm: number;
     height_cm: number;
+    anchoring_type: string;
+    color: string;
     quantity: number;
   };
   pricing: CartPricing;

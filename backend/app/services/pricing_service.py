@@ -13,6 +13,21 @@ from app.models.product import (
 
 TWO_DECIMALS = Decimal("0.01")
 CM_PER_METER = Decimal("100")
+ANCHORING_SURCHARGES = {
+    "interior_holes": Decimal("0.00"),
+    "frontal_holes": Decimal("0.00"),
+    "plates": Decimal("14.99"),
+    "side_claws": Decimal("39.00"),
+    "front_claws": Decimal("39.00"),
+}
+ALLOWED_COLORS = {
+    "white",
+    "black",
+    "anthracite",
+    "green",
+}
+DEFAULT_ANCHORING_TYPE = "interior_holes"
+DEFAULT_COLOR = "white"
 
 
 class PricingError(Exception):
@@ -41,6 +56,8 @@ class PricingService:
         normalized_width_cm = normalized_configuration["width_cm"]
         normalized_height_cm = normalized_configuration["height_cm"]
         normalized_options = normalized_configuration["options"]
+        anchoring_type = normalized_configuration["anchoring_type"]
+        color = normalized_configuration["color"]
 
         product = PricingService._get_product(product_id)
         PricingService._validate_inputs(
@@ -60,7 +77,13 @@ class PricingService:
             product=product,
             options=normalized_options,
         )
-        unit_price = PricingService._money(unit_price_base + unit_options_modifier)
+        unit_anchoring_surcharge = PricingService._calculate_anchoring_surcharge(
+            anchoring_type=anchoring_type,
+        )
+        unit_configuration_modifier = PricingService._money(
+            unit_options_modifier + unit_anchoring_surcharge
+        )
+        unit_price = PricingService._money(unit_price_base + unit_configuration_modifier)
 
         unit_shipping_surcharge, surcharge_rule = (
             PricingService._calculate_size_surcharge(
@@ -83,6 +106,8 @@ class PricingService:
         )
 
         rules_applied = []
+        if unit_anchoring_surcharge > Decimal("0.00"):
+            rules_applied.append(f"anchoring_{anchoring_type}")
         if surcharge_rule:
             rules_applied.append(surcharge_rule)
         if shipping_rule:
@@ -98,13 +123,18 @@ class PricingService:
                 "width_cm": normalized_width_cm,
                 "height_cm": normalized_height_cm,
                 "quantity": quantity,
+                "anchoring_type": anchoring_type,
+                "color": color,
             },
             "pricing": {
                 "unit_area_m2": PricingService._serialize_decimal(unit_area_m2, 4),
                 "unit_price_m2": PricingService._serialize_decimal(unit_price_m2),
                 "unit_price_base": PricingService._serialize_decimal(unit_price_base),
                 "unit_options_modifier": PricingService._serialize_decimal(
-                    unit_options_modifier
+                    unit_configuration_modifier
+                ),
+                "unit_anchoring_surcharge": PricingService._serialize_decimal(
+                    unit_anchoring_surcharge
                 ),
                 "unit_price": PricingService._serialize_decimal(unit_price),
                 "unit_shipping_surcharge": PricingService._serialize_decimal(
@@ -196,9 +226,29 @@ class PricingService:
                 "option_slug": option_slug,
             })
 
+        anchoring_type = str(
+            configuration.get("anchoring_type", DEFAULT_ANCHORING_TYPE)
+        ).strip()
+        if anchoring_type not in ANCHORING_SURCHARGES:
+            raise PricingError(
+                code="INVALID_ANCHORING_TYPE",
+                message="Configuration anchoring_type is invalid.",
+                status_code=400,
+            )
+
+        color = str(configuration.get("color", DEFAULT_COLOR)).strip()
+        if color not in ALLOWED_COLORS:
+            raise PricingError(
+                code="INVALID_COLOR",
+                message="Configuration color is invalid.",
+                status_code=400,
+            )
+
         return {
             "width_cm": normalized_width_cm,
             "height_cm": normalized_height_cm,
+            "anchoring_type": anchoring_type,
+            "color": color,
             "options": normalized_options,
         }
 
@@ -430,6 +480,10 @@ class PricingService:
             PricingService._to_money(Config.BASE_SHIPPING_FEE),
             "standard_shipping_fee",
         )
+
+    @staticmethod
+    def _calculate_anchoring_surcharge(*, anchoring_type: str) -> Decimal:
+        return PricingService._money(ANCHORING_SURCHARGES[anchoring_type])
 
     @staticmethod
     def _money(value) -> Decimal:

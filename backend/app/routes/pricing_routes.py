@@ -14,6 +14,16 @@ def quote_price():
     width_cm = data.get("width_cm")
     height_cm = data.get("height_cm")
     quantity = data.get("quantity", 1)
+    configuration = data.get("configuration")
+
+    if configuration is None:
+        configuration = {
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+            "anchoring_type": data.get("anchoring_type"),
+            "color": data.get("color"),
+            "options": data.get("options", []),
+        }
 
     if product_id is None:
         return (
@@ -31,8 +41,7 @@ def quote_price():
     try:
         quote = PricingService.quote(
             product_id=int(product_id),
-            width_cm=int(width_cm),
-            height_cm=int(height_cm),
+            configuration=configuration,
             quantity=int(quantity),
         )
     except TypeError:
@@ -41,7 +50,7 @@ def quote_price():
                 {
                     "error": {
                         "code": "INVALID_PAYLOAD",
-                        "message": "width_cm, height_cm and quantity are required.",
+                        "message": "A valid configuration and quantity are required.",
                     }
                 }
             ),
@@ -53,7 +62,7 @@ def quote_price():
                 {
                     "error": {
                         "code": "INVALID_PAYLOAD",
-                        "message": "product_id, width_cm, height_cm and quantity must be integers.",
+                        "message": "product_id and quantity must be valid integers.",
                     }
                 }
             ),
