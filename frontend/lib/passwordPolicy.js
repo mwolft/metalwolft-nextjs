@@ -1,5 +1,5 @@
 export const PASSWORD_POLICY_HELP =
-  "La contrasena debe tener al menos 8 caracteres, una mayuscula y un numero.";
+  "La contraseña debe tener al menos 8 caracteres, una mayúscula y un número.";
 
 export function getPasswordPolicyError(password) {
   if (password.length < 8) {
@@ -7,11 +7,11 @@ export function getPasswordPolicyError(password) {
   }
 
   if (!/[A-Z]/.test(password)) {
-    return "La contrasena debe incluir al menos una letra mayuscula.";
+    return "La contraseña debe incluir al menos una letra mayúscula.";
   }
 
   if (!/\d/.test(password)) {
-    return "La contrasena debe incluir al menos un numero.";
+    return "La contraseña debe incluir al menos un número.";
   }
 
   return null;

@@ -9,7 +9,7 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    JWT_SECRET_KEY = "metalwolft_super_secret_jwt_key_2026_secure"
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key")
     JWT_ALGORITHM = "HS256"
     PASSWORD_RESET_TOKEN_TTL_MINUTES = int(
         os.getenv("PASSWORD_RESET_TOKEN_TTL_MINUTES", "60")

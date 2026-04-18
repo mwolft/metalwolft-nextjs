@@ -26,15 +26,15 @@ class AuthService:
     def get_password_policy_error(password: str) -> str | None:
         if len(password) < AuthService.PASSWORD_MIN_LENGTH:
             return (
-                f"La contrasena debe tener al menos {AuthService.PASSWORD_MIN_LENGTH} caracteres, "
-                "una mayuscula y un numero."
+                f"La contraseña debe tener al menos {AuthService.PASSWORD_MIN_LENGTH} caracteres, "
+                "una mayúscula y un número."
             )
 
         if not re.search(r"[A-Z]", password):
-            return "La contrasena debe incluir al menos una letra mayuscula."
+            return "La contraseña debe incluir al menos una letra mayúscula."
 
         if not re.search(r"\d", password):
-            return "La contrasena debe incluir al menos un numero."
+            return "La contraseña debe incluir al menos un número."
 
         return None
 
