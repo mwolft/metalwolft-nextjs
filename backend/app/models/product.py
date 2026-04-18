@@ -136,6 +136,15 @@ class Product(db.Model):
             "slug": self.slug,
             "name": self.name,
             "description": self.description,
+            "price_m2": (
+                str(self.price_m2)
+                if self.price_m2 is not None
+                else None
+            ),
+            "min_width_cm": self.min_width_cm,
+            "max_width_cm": self.max_width_cm,
+            "min_height_cm": self.min_height_cm,
+            "max_height_cm": self.max_height_cm,
             "category": (
                 self.category.serialize_public_summary()
                 if self.category and self.category.is_active

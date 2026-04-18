@@ -1,17 +1,19 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { useCart } from "@/components/cart/CartProvider";
+import { CLIENT_API_URL } from "@/lib/metalwolft";
 import {
   anchoringOptions,
   colorOptions,
   type AnchoringType,
   type ProductColor,
 } from "@/lib/productConfiguration";
-import { CLIENT_API_URL } from "@/lib/metalwolft";
+
+import styles from "./AddToCartForm.module.css";
 
 type QuoteResponse = {
   pricing: {
@@ -24,21 +26,50 @@ type QuoteResponse = {
   currency: string;
 };
 
-const INITIAL_WIDTH_CM = "120";
-const INITIAL_HEIGHT_CM = "150";
+type AddToCartFormProps = {
+  productId: number;
+  priceM2: string | null;
+  minWidthCm: number | null;
+  maxWidthCm: number | null;
+  minHeightCm: number | null;
+  maxHeightCm: number | null;
+};
+
 const INITIAL_QUANTITY = "1";
 const INITIAL_ANCHORING_TYPE: AnchoringType = "interior_holes";
 const INITIAL_COLOR: ProductColor = "white";
+const DEFAULT_WIDTH_CM = 120;
+const DEFAULT_HEIGHT_CM = 150;
+
+function clamp(value: number, min: number | null, max: number | null) {
+  const minValue = min ?? value;
+  const maxValue = max ?? value;
+
+  return Math.min(Math.max(value, minValue), maxValue);
+}
 
 export default function AddToCartForm({
   productId,
-}: {
-  productId: number;
-}) {
+  priceM2,
+  minWidthCm,
+  maxWidthCm,
+  minHeightCm,
+  maxHeightCm,
+}: AddToCartFormProps) {
   const router = useRouter();
   const { refreshCart } = useCart();
-  const [widthCm, setWidthCm] = useState(INITIAL_WIDTH_CM);
-  const [heightCm, setHeightCm] = useState(INITIAL_HEIGHT_CM);
+
+  const initialWidth = useMemo(
+    () => String(clamp(DEFAULT_WIDTH_CM, minWidthCm, maxWidthCm)),
+    [minWidthCm, maxWidthCm],
+  );
+  const initialHeight = useMemo(
+    () => String(clamp(DEFAULT_HEIGHT_CM, minHeightCm, maxHeightCm)),
+    [minHeightCm, maxHeightCm],
+  );
+
+  const [widthCm, setWidthCm] = useState(initialWidth);
+  const [heightCm, setHeightCm] = useState(initialHeight);
   const [quantity, setQuantity] = useState(INITIAL_QUANTITY);
   const [anchoringType, setAnchoringType] = useState<AnchoringType>(INITIAL_ANCHORING_TYPE);
   const [color, setColor] = useState<ProductColor>(INITIAL_COLOR);
@@ -46,9 +77,19 @@ export default function AddToCartForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setWidthCm(initialWidth);
+    setHeightCm(initialHeight);
+    setQuantity(INITIAL_QUANTITY);
+    setAnchoringType(INITIAL_ANCHORING_TYPE);
+    setColor(INITIAL_COLOR);
+    setQuote(null);
+    setError(null);
+  }, [initialHeight, initialWidth, productId]);
+
   function resetForm() {
-    setWidthCm(INITIAL_WIDTH_CM);
-    setHeightCm(INITIAL_HEIGHT_CM);
+    setWidthCm(initialWidth);
+    setHeightCm(initialHeight);
     setQuantity(INITIAL_QUANTITY);
     setAnchoringType(INITIAL_ANCHORING_TYPE);
     setColor(INITIAL_COLOR);
@@ -64,6 +105,11 @@ export default function AddToCartForm({
       color,
       options: [],
     };
+  }
+
+  function invalidateQuote() {
+    setQuote(null);
+    setError(null);
   }
 
   async function handleQuote() {
@@ -135,90 +181,158 @@ export default function AddToCartForm({
     }
   }
 
+  const widthHint = (
+    minWidthCm !== null &&
+    maxWidthCm !== null
+      ? `Entre ${minWidthCm} y ${maxWidthCm} cm`
+      : "Introduce el ancho en centimetros"
+  );
+  const heightHint = (
+    minHeightCm !== null &&
+    maxHeightCm !== null
+      ? `Entre ${minHeightCm} y ${maxHeightCm} cm`
+      : "Introduce el alto en centimetros"
+  );
+
   return (
-    <section className="mt-8 rounded-2xl border border-neutral-200 bg-white p-6">
-      <h2 className="text-xl font-semibold text-neutral-900">
-        Configura tu reja
-      </h2>
-      <form className="mt-4 grid gap-4" onSubmit={handleSubmit}>
-        <label className="grid gap-1">
-          <span className="text-sm font-medium text-neutral-700">Ancho (cm)</span>
-          <input
-            className="rounded-xl border border-neutral-300 px-4 py-3"
-            min={1}
-            name="widthCm"
-            onChange={(event) => setWidthCm(event.target.value)}
-            type="number"
-            value={widthCm}
-          />
-        </label>
+    <section className={styles.card}>
+      <div className={styles.header}>
+        <span className={styles.eyebrow}>Configurador</span>
+        <h2 className={styles.title}>Configura tu reja</h2>
+        <p className={styles.description}>
+          Define medidas, anclaje y color antes de calcular el precio final o
+          anadir el producto al carrito.
+        </p>
+      </div>
 
-        <label className="grid gap-1">
-          <span className="text-sm font-medium text-neutral-700">Alto (cm)</span>
-          <input
-            className="rounded-xl border border-neutral-300 px-4 py-3"
-            min={1}
-            name="heightCm"
-            onChange={(event) => setHeightCm(event.target.value)}
-            type="number"
-            value={heightCm}
-          />
-        </label>
+      <div className={styles.rangeBanner}>
+        {priceM2 ? (
+          <>
+            Base orientativa desde <strong>{priceM2} EUR/m2</strong>. El total final
+            se ajusta a tus medidas y configuracion.
+          </>
+        ) : (
+          <>
+            Introduce una configuracion valida para obtener un precio real antes
+            de continuar.
+          </>
+        )}
+      </div>
 
-        <label className="grid gap-1">
-          <span className="text-sm font-medium text-neutral-700">Cantidad</span>
-          <input
-            className="rounded-xl border border-neutral-300 px-4 py-3"
-            min={1}
-            name="quantity"
-            onChange={(event) => setQuantity(event.target.value)}
-            type="number"
-            value={quantity}
-          />
-        </label>
+      <form className={styles.form} onSubmit={handleSubmit}>
+        <div className={styles.fieldGrid}>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>
+              <span>Ancho (cm)</span>
+              <span className={styles.fieldHint}>{widthHint}</span>
+            </span>
+            <input
+              className={styles.input}
+              min={minWidthCm ?? 1}
+              max={maxWidthCm ?? undefined}
+              name="widthCm"
+              onChange={(event) => {
+                invalidateQuote();
+                setWidthCm(event.target.value);
+              }}
+              type="number"
+              value={widthCm}
+            />
+          </label>
 
-        <label className="grid gap-1">
-          <span className="text-sm font-medium text-neutral-700">Tipo de anclaje</span>
-          <select
-            className="rounded-xl border border-neutral-300 px-4 py-3"
-            name="anchoringType"
-            onChange={(event) => setAnchoringType(event.target.value as AnchoringType)}
-            value={anchoringType}
-          >
-            {anchoringOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>
+              <span>Alto (cm)</span>
+              <span className={styles.fieldHint}>{heightHint}</span>
+            </span>
+            <input
+              className={styles.input}
+              min={minHeightCm ?? 1}
+              max={maxHeightCm ?? undefined}
+              name="heightCm"
+              onChange={(event) => {
+                invalidateQuote();
+                setHeightCm(event.target.value);
+              }}
+              type="number"
+              value={heightCm}
+            />
+          </label>
 
-        <label className="grid gap-1">
-          <span className="text-sm font-medium text-neutral-700">Color</span>
-          <select
-            className="rounded-xl border border-neutral-300 px-4 py-3"
-            name="color"
-            onChange={(event) => setColor(event.target.value as ProductColor)}
-            value={color}
-          >
-            {colorOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>
+              <span>Cantidad</span>
+              <span className={styles.fieldHint}>Minimo 1 unidad</span>
+            </span>
+            <input
+              className={styles.input}
+              min={1}
+              name="quantity"
+              onChange={(event) => {
+                invalidateQuote();
+                setQuantity(event.target.value);
+              }}
+              type="number"
+              value={quantity}
+            />
+          </label>
 
-        <div className="flex flex-wrap gap-3">
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>
+              <span>Tipo de anclaje</span>
+              <span className={styles.fieldHint}>Afecta al precio final</span>
+            </span>
+            <select
+              className={styles.select}
+              name="anchoringType"
+              onChange={(event) => {
+                invalidateQuote();
+                setAnchoringType(event.target.value as AnchoringType);
+              }}
+              value={anchoringType}
+            >
+              {anchoringOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className={`${styles.field} ${styles.fieldWide}`}>
+            <span className={styles.fieldLabel}>
+              <span>Color</span>
+              <span className={styles.fieldHint}>Seleccion visible en pedido y carrito</span>
+            </span>
+            <select
+              className={styles.select}
+              name="color"
+              onChange={(event) => {
+                invalidateQuote();
+                setColor(event.target.value as ProductColor);
+              }}
+              value={color}
+            >
+              {colorOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className={styles.actions}>
           <button
-            className="rounded-xl border border-neutral-300 px-4 py-3 text-sm font-medium text-neutral-900"
+            className={styles.secondaryButton}
+            disabled={busy}
             onClick={handleQuote}
             type="button"
           >
-            {busy ? "Calculando..." : "Actualizar precio"}
+            {busy ? "Calculando..." : "Calcular precio final"}
           </button>
           <button
-            className="rounded-xl bg-neutral-950 px-4 py-3 text-sm font-medium text-white"
+            className={styles.primaryButton}
             disabled={busy}
             type="submit"
           >
@@ -226,43 +340,51 @@ export default function AddToCartForm({
           </button>
         </div>
 
+        <p className={styles.ctaHint}>
+          Al anadirla al carrito guardaremos esta configuracion exacta para que
+          no pierdas medidas ni opciones al continuar con la compra.
+        </p>
+
         {error ? (
-          <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </p>
+          <p className={styles.error}>{error}</p>
         ) : null}
       </form>
 
       {quote ? (
-        <div className="mt-6 rounded-2xl bg-neutral-50 p-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-            Resumen provisional
-          </h3>
-          <dl className="mt-3 grid gap-2 text-sm text-neutral-700">
-            <div className="flex justify-between gap-4">
-              <dt>Productos</dt>
-              <dd>{quote.pricing.products_subtotal} {quote.currency}</dd>
+        <section className={styles.summary}>
+          <div className={styles.summaryHeader}>
+            <h3 className={styles.summaryTitle}>Resumen provisional</h3>
+            <span className={styles.summarySubtitle}>Pricing real</span>
+          </div>
+
+          <div className={styles.summaryGrid}>
+            <div className={styles.summaryRow}>
+              <span>Productos</span>
+              <strong>{quote.pricing.products_subtotal} {quote.currency}</strong>
             </div>
-            <div className="flex justify-between gap-4">
-              <dt>Envio base</dt>
-              <dd>{quote.pricing.shipping_base} {quote.currency}</dd>
+            <div className={styles.summaryRow}>
+              <span>Envio base</span>
+              <strong>{quote.pricing.shipping_base} {quote.currency}</strong>
             </div>
-            <div className="flex justify-between gap-4">
-              <dt>Recargos de envio</dt>
-              <dd>{quote.pricing.shipping_surcharge} {quote.currency}</dd>
+            <div className={styles.summaryRow}>
+              <span>Recargos de envio</span>
+              <strong>{quote.pricing.shipping_surcharge} {quote.currency}</strong>
             </div>
-            <div className="flex justify-between gap-4 border-t border-neutral-200 pt-2 font-semibold text-neutral-950">
-              <dt>Total</dt>
-              <dd>{quote.pricing.total} {quote.currency}</dd>
-            </div>
-          </dl>
+          </div>
+
+          <div className={styles.summaryTotal}>
+            <span className={styles.summaryTotalLabel}>Total estimado</span>
+            <span className={styles.summaryTotalValue}>
+              {quote.pricing.total} {quote.currency}
+            </span>
+          </div>
 
           {quote.rules_applied.length ? (
-            <p className="mt-3 text-xs text-neutral-500">
+            <p className={styles.summaryRules}>
               Reglas aplicadas: {quote.rules_applied.join(", ")}
             </p>
           ) : null}
-        </div>
+        </section>
       ) : null}
     </section>
   );

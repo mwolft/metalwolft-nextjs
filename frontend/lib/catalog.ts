@@ -19,6 +19,11 @@ export type CatalogProduct = {
   slug: string;
   name: string;
   description: string | null;
+  price_m2: string | null;
+  min_width_cm: number | null;
+  max_width_cm: number | null;
+  min_height_cm: number | null;
+  max_height_cm: number | null;
   category: CatalogCategorySummary | null;
   image: string | null;
   flags: {
