@@ -200,6 +200,18 @@
   color: #171717;
 }
 
+.summaryAccentRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #111827;
+  font-weight: 600;
+}
+
+.summaryAccentRow strong {
+  color: #111827;
+}
+
 .summaryTotal {
   margin-top: 0.8rem;
   padding-top: 0.9rem;

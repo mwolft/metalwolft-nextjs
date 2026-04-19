@@ -17,6 +17,7 @@ import styles from "./AddToCartForm.module.css";
 
 type QuoteResponse = {
   pricing: {
+    unit_anchoring_surcharge: string;
     products_subtotal: string;
     shipping_base: string;
     shipping_surcharge: string;
@@ -24,6 +25,13 @@ type QuoteResponse = {
   };
   rules_applied: string[];
   currency: string;
+};
+
+type ApiErrorResponse = {
+  error?: {
+    code?: string;
+    message?: string;
+  };
 };
 
 type AddToCartFormProps = {
@@ -46,6 +54,18 @@ function clamp(value: number, min: number | null, max: number | null) {
   const maxValue = max ?? value;
 
   return Math.min(Math.max(value, minValue), maxValue);
+}
+
+function formatMoney(
+  value: number | string,
+  currency: string,
+  options?: { showPlus?: boolean },
+) {
+  const amount = typeof value === "number" ? value : Number(value);
+  const sign = options?.showPlus && amount > 0 ? "+" : "";
+  const currencyLabel = currency === "EUR" ? "€" : currency;
+
+  return `${sign}${amount.toFixed(2).replace(".", ",")}${currencyLabel}`;
 }
 
 export default function AddToCartForm({
@@ -75,7 +95,6 @@ export default function AddToCartForm({
   const [color, setColor] = useState<ProductColor>(INITIAL_COLOR);
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setWidthCm(initialWidth);
@@ -84,7 +103,6 @@ export default function AddToCartForm({
     setAnchoringType(INITIAL_ANCHORING_TYPE);
     setColor(INITIAL_COLOR);
     setQuote(null);
-    setError(null);
   }, [initialHeight, initialWidth, productId]);
 
   function resetForm() {
@@ -94,7 +112,6 @@ export default function AddToCartForm({
     setAnchoringType(INITIAL_ANCHORING_TYPE);
     setColor(INITIAL_COLOR);
     setQuote(null);
-    setError(null);
   }
 
   function buildConfiguration() {
@@ -109,12 +126,40 @@ export default function AddToCartForm({
 
   function invalidateQuote() {
     setQuote(null);
-    setError(null);
+  }
+
+  function getFriendlyErrorMessage(
+    code: string | undefined,
+    fallbackMessage: string,
+  ) {
+    switch (code) {
+      case "INVALID_WIDTH":
+        return widthHint
+          ? `Revisa el ancho. Debe estar dentro del rango permitido: ${widthHint.toLowerCase()}.`
+          : "Revisa el ancho introducido antes de continuar.";
+      case "INVALID_HEIGHT":
+        return heightHint
+          ? `Revisa el alto. Debe estar dentro del rango permitido: ${heightHint.toLowerCase()}.`
+          : "Revisa el alto introducido antes de continuar.";
+      case "INVALID_QUANTITY":
+        return "Indica una cantidad valida para poder calcular el precio.";
+      case "INVALID_PAYLOAD":
+        return "Revisa las medidas y la configuracion antes de continuar.";
+      default:
+        return fallbackMessage;
+    }
+  }
+
+  function showApiErrorToast(data: ApiErrorResponse | null, fallbackMessage: string) {
+    const message = getFriendlyErrorMessage(
+      data?.error?.code,
+      data?.error?.message ?? fallbackMessage,
+    );
+    toast.error(message);
   }
 
   async function handleQuote() {
     setBusy(true);
-    setError(null);
 
     try {
       const res = await fetch(`${CLIENT_API_URL}/api/pricing/quote`, {
@@ -128,16 +173,22 @@ export default function AddToCartForm({
         }),
       });
 
-      const data = await res.json();
+      const data: QuoteResponse & ApiErrorResponse = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error?.message ?? "No se pudo calcular el precio.");
+        showApiErrorToast(data, "No se pudo calcular el precio.");
+        setQuote(null);
+        return;
       }
 
       setQuote(data);
     } catch (err) {
       setQuote(null);
-      setError(err instanceof Error ? err.message : "Error desconocido.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Ha ocurrido un error al calcular el precio.",
+      );
     } finally {
       setBusy(false);
     }
@@ -146,7 +197,6 @@ export default function AddToCartForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
-    setError(null);
 
     try {
       const res = await fetch(`${CLIENT_API_URL}/api/cart/items`, {
@@ -160,10 +210,11 @@ export default function AddToCartForm({
         }),
       });
 
-      const data = await res.json();
+      const data: ApiErrorResponse = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error?.message ?? "No se pudo anadir al carrito.");
+        showApiErrorToast(data, "No se pudo anadir al carrito.");
+        return;
       }
 
       await refreshCart();
@@ -175,7 +226,11 @@ export default function AddToCartForm({
         },
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido.");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Ha ocurrido un error al anadir el producto al carrito.",
+      );
     } finally {
       setBusy(false);
     }
@@ -193,6 +248,16 @@ export default function AddToCartForm({
       ? `Entre ${minHeightCm} y ${maxHeightCm} cm`
       : "Introduce el alto en centimetros"
   );
+  const quoteQuantity = Number(quantity) || 1;
+  const anchoringTotal = quote
+    ? Number(quote.pricing.unit_anchoring_surcharge) * quoteQuantity
+    : 0;
+  const productsBaseTotal = quote
+    ? Math.max(0, Number(quote.pricing.products_subtotal) - anchoringTotal)
+    : 0;
+  const shippingTotal = quote
+    ? Number(quote.pricing.shipping_base) + Number(quote.pricing.shipping_surcharge)
+    : 0;
 
   return (
     <section className={styles.card}>
@@ -344,10 +409,6 @@ export default function AddToCartForm({
           Al anadirla al carrito guardaremos esta configuracion exacta para que
           no pierdas medidas ni opciones al continuar con la compra.
         </p>
-
-        {error ? (
-          <p className={styles.error}>{error}</p>
-        ) : null}
       </form>
 
       {quote ? (
@@ -359,31 +420,25 @@ export default function AddToCartForm({
 
           <div className={styles.summaryGrid}>
             <div className={styles.summaryRow}>
-              <span>Productos</span>
-              <strong>{quote.pricing.products_subtotal} {quote.currency}</strong>
+              <span>Productos base</span>
+              <strong>{formatMoney(productsBaseTotal, quote.currency)}</strong>
+            </div>
+            <div className={styles.summaryAccentRow}>
+              <span>Anclaje</span>
+              <strong>{formatMoney(anchoringTotal, quote.currency, { showPlus: true })}</strong>
             </div>
             <div className={styles.summaryRow}>
-              <span>Envio base</span>
-              <strong>{quote.pricing.shipping_base} {quote.currency}</strong>
-            </div>
-            <div className={styles.summaryRow}>
-              <span>Recargos de envio</span>
-              <strong>{quote.pricing.shipping_surcharge} {quote.currency}</strong>
+              <span>Envio</span>
+              <strong>{formatMoney(shippingTotal, quote.currency)}</strong>
             </div>
           </div>
 
           <div className={styles.summaryTotal}>
             <span className={styles.summaryTotalLabel}>Total estimado</span>
             <span className={styles.summaryTotalValue}>
-              {quote.pricing.total} {quote.currency}
+              {formatMoney(quote.pricing.total, quote.currency)}
             </span>
           </div>
-
-          {quote.rules_applied.length ? (
-            <p className={styles.summaryRules}>
-              Reglas aplicadas: {quote.rules_applied.join(", ")}
-            </p>
-          ) : null}
         </section>
       ) : null}
     </section>

@@ -11,11 +11,11 @@ export const anchoringOptions: Array<{
   value: AnchoringType;
   label: string;
 }> = [
-  { value: "interior_holes", label: "Sin obra con agujeros interiores" },
-  { value: "frontal_holes", label: "Sin obra con agujeros frontales" },
-  { value: "plates", label: "Sin obra con pletinas" },
-  { value: "side_claws", label: "Con obra con garras metalicas laterales" },
-  { value: "front_claws", label: "Con obra con garras frontales" },
+  { value: "interior_holes", label: "Sin obra con agujeros interiores (sin coste)" },
+  { value: "frontal_holes", label: "Sin obra con agujeros frontales (sin coste)" },
+  { value: "plates", label: "Sin obra con pletinas (+14,99€)" },
+  { value: "side_claws", label: "Con obra con garras metalicas laterales (+39€)" },
+  { value: "front_claws", label: "Con obra con garras frontales (+39€)" },
 ];
 
 export const colorOptions: Array<{

@@ -4,6 +4,47 @@
   padding: 2rem 1rem 3.5rem;
 }
 
+.breadcrumbs {
+  margin-bottom: 1.25rem;
+}
+
+.breadcrumbList {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #737373;
+  font-size: 0.92rem;
+}
+
+.breadcrumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.breadcrumbItem:not(:last-child)::after {
+  content: "/";
+  color: #a8a29e;
+}
+
+.breadcrumbLink {
+  color: #57534e;
+  text-decoration: none;
+}
+
+.breadcrumbLink:hover {
+  color: #171717;
+}
+
+.breadcrumbCurrent {
+  color: #171717;
+  font-weight: 600;
+}
+
 .hero {
   display: grid;
   gap: 2rem;
@@ -78,6 +119,20 @@
   gap: 1.35rem;
 }
 
+.heroCopy {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.kicker {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #737373;
+}
+
 .eyebrowRow {
   display: flex;
   flex-wrap: wrap;
@@ -117,6 +172,13 @@
   color: #525252;
   font-size: 1.05rem;
   line-height: 1.7;
+}
+
+.supportText {
+  margin: 0;
+  max-width: 60ch;
+  color: #44403c;
+  line-height: 1.75;
 }
 
 .priceBox {
@@ -160,6 +222,32 @@
   line-height: 1.65;
 }
 
+.highlightsSection,
+.configIntro {
+  display: grid;
+  gap: 1rem;
+}
+
+.sectionHeader {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.sectionEyebrow {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #737373;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  line-height: 1.2;
+  color: #171717;
+}
+
 .highlights {
   display: grid;
   gap: 0.75rem;
@@ -174,16 +262,22 @@
 }
 
 .highlightTitle {
-  display: block;
-  margin-bottom: 0.35rem;
+  margin: 0 0 0.35rem;
   font-weight: 700;
   color: #111827;
+  font-size: 1rem;
 }
 
 .highlightText {
   margin: 0;
   color: #525252;
   line-height: 1.55;
+}
+
+.configIntroText {
+  margin: 0;
+  color: #525252;
+  line-height: 1.7;
 }
 
 .contentSection {
