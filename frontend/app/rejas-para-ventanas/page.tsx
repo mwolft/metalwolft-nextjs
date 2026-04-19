@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getCategoryBySlug, getCategories, getProductsByCategory } from "@/lib/categories";
+import { getProductPublicPath } from "@/lib/products";
 import { getAbsoluteUrl } from "@/lib/site";
 
 import styles from "./RejasParaVentanas.module.css";
@@ -158,7 +159,7 @@ export default async function RejasParaVentanasPage() {
                   {product.description ? (
                     <p className={styles.productDescription}>{product.description}</p>
                   ) : null}
-                  <Link className={styles.productLink} href={`/productos/${product.slug}`}>
+                  <Link className={styles.productLink} href={getProductPublicPath(product)}>
                     Ver producto
                   </Link>
                 </div>

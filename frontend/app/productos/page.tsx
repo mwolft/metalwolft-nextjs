@@ -1,5 +1,8 @@
+import Link from "next/link"
+
 import { getApiUrl } from "@/lib/api"
 import type { CatalogProduct } from "@/lib/catalog"
+import { getProductPublicPath } from "@/lib/products"
 
 async function getProducts(): Promise<CatalogProduct[]> {
   const res = await fetch(getApiUrl("/api/products/"), {
@@ -37,9 +40,9 @@ export default async function ProductosPage() {
                 }}
               />
             ) : null}
-            <a href={`/productos/${product.slug}`}>
+            <Link href={getProductPublicPath(product)}>
               <strong>{product.name}</strong>
-            </a>
+            </Link>
             {product.description && <p>{product.description}</p>}
           </li>
         ))}

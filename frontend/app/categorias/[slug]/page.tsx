@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getCategoryBySlug, getProductsByCategory } from "@/lib/categories";
+import { getProductPublicPath } from "@/lib/products";
 
 export default async function CategoriaPage({
   params,
@@ -61,7 +62,7 @@ export default async function CategoriaPage({
               <div style={{ padding: "1rem" }}>
                 <h2 style={{ marginTop: 0 }}>{product.name}</h2>
                 {product.description ? <p>{product.description}</p> : null}
-                <Link href={`/productos/${product.slug}`}>Ver producto</Link>
+                <Link href={getProductPublicPath(product)}>Ver producto</Link>
               </div>
             </article>
           ))}
