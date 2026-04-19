@@ -1,0 +1,245 @@
+.page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.hero {
+  display: grid;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+.heroContent {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.eyebrow {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: #f5f5f4;
+  border: 1px solid #e7e5e4;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #44403c;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2.5rem, 4vw, 4.25rem);
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+  color: #171717;
+}
+
+.lead {
+  margin: 0;
+  max-width: 62ch;
+  color: #44403c;
+  font-size: 1.08rem;
+  line-height: 1.8;
+}
+
+.priceBox {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem 1.1rem;
+  border-radius: 22px;
+  border: 1px solid #e5e7eb;
+  background: linear-gradient(180deg, #ffffff 0%, #fafaf9 100%);
+}
+
+.priceLabel {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #737373;
+}
+
+.priceValue {
+  display: flex;
+  gap: 0.45rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.priceAmount {
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  font-weight: 700;
+  color: #111827;
+}
+
+.priceUnit {
+  color: #525252;
+}
+
+.priceHint {
+  margin: 0;
+  color: #57534e;
+  line-height: 1.65;
+}
+
+.heroHighlights {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.heroHighlight {
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.heroHighlightTitle {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  color: #171717;
+}
+
+.heroHighlightText {
+  margin: 0;
+  color: #525252;
+  line-height: 1.55;
+}
+
+.section {
+  margin-top: 3rem;
+  display: grid;
+  gap: 1.2rem;
+}
+
+.sectionHeader {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 64ch;
+}
+
+.sectionEyebrow {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #737373;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: clamp(1.7rem, 2.4vw, 2.3rem);
+  color: #171717;
+}
+
+.sectionLead {
+  margin: 0;
+  color: #525252;
+  line-height: 1.75;
+}
+
+.textGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.card {
+  padding: 1.1rem 1.15rem;
+  border-radius: 22px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.cardTitle {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  color: #171717;
+}
+
+.cardText {
+  margin: 0;
+  color: #525252;
+  line-height: 1.65;
+}
+
+.processList,
+.faqList {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.processStep,
+.faqItem {
+  padding: 1.1rem 1.15rem;
+  border-radius: 22px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.stepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.7rem;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.stepTitle,
+.faqQuestion {
+  margin: 0 0 0.45rem;
+  font-size: 1.05rem;
+  color: #171717;
+}
+
+.stepText,
+.faqAnswer {
+  margin: 0;
+  color: #525252;
+  line-height: 1.7;
+}
+
+.linksGrid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.linkCard {
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem 1.05rem;
+  border-radius: 20px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  text-decoration: none;
+}
+
+.linkCard:hover {
+  border-color: #cbd5e1;
+}
+
+.linkTitle {
+  font-weight: 700;
+  color: #171717;
+}
+
+.linkText {
+  color: #57534e;
+  line-height: 1.55;
+}
+
+@media (min-width: 980px) {
+  .hero {
+    grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
+    gap: 2.5rem;
+  }
+}
