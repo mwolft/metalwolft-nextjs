@@ -1,7 +1,6 @@
 import Link from "next/link";
 
-import { getApiUrl } from "@/lib/api";
-import type { CatalogCategory } from "@/lib/catalog";
+import { getCategories } from "@/lib/categories";
 
 export const metadata = {
   title: "Rejas para ventanas a medida",
@@ -11,18 +10,6 @@ export const metadata = {
     type: "website",
   },
 };
-
-async function getCategories(): Promise<CatalogCategory[]> {
-  const res = await fetch(getApiUrl("/api/categories/"), {
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch categories");
-  }
-
-  return res.json();
-}
 
 export default async function HomePage() {
   const categories = await getCategories();
@@ -80,7 +67,7 @@ export default async function HomePage() {
                 <p>{category.description}</p>
               ) : null}
 
-              <Link href={`/categorias/${category.slug}`}>
+              <Link href={`/${category.slug}`}>
                 Ver categoría
               </Link>
             </div>
