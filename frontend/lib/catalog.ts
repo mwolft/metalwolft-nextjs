@@ -8,6 +8,8 @@ export type CatalogCategory = {
   id: number;
   name: string;
   slug: string;
+  seo_title: string | null;
+  seo_description: string | null;
   description: string | null;
   image_url: string | null;
   parent: CatalogCategorySummary | null;

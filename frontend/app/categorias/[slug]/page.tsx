@@ -1,32 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getApiUrl } from "@/lib/api";
-import type { CatalogCategory, CatalogProduct } from "@/lib/catalog";
-
-async function getCategories(): Promise<CatalogCategory[]> {
-  const res = await fetch(getApiUrl("/api/categories/"), {
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch categories");
-  }
-
-  return res.json();
-}
-
-async function getProductsByCategory(slug: string): Promise<CatalogProduct[]> {
-  const res = await fetch(getApiUrl(`/api/products/?category=${slug}`), {
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch category products");
-  }
-
-  return res.json();
-}
+import { getCategoryBySlug, getProductsByCategory } from "@/lib/categories";
 
 export default async function CategoriaPage({
   params,
@@ -34,12 +9,10 @@ export default async function CategoriaPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [categories, products] = await Promise.all([
-    getCategories(),
+  const [category, products] = await Promise.all([
+    getCategoryBySlug(slug),
     getProductsByCategory(slug),
   ]);
-
-  const category = categories.find((item) => item.slug === slug) ?? null;
 
   if (!category && products.length === 0) {
     notFound();

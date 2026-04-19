@@ -148,10 +148,52 @@ class UserAdmin(ModelView):
 
 
 class CategoryAdmin(ModelView):
-    column_list = ("id", "name", "slug", "parent", "is_active", "created_at")
+    column_list = (
+        "id",
+        "name",
+        "slug",
+        "parent",
+        "is_active",
+        "seo_title",
+        "image_url",
+        "created_at",
+    )
+    column_details_list = (
+        "id",
+        "name",
+        "slug",
+        "parent",
+        "is_active",
+        "seo_title",
+        "seo_description",
+        "description",
+        "image_url",
+        "created_at",
+    )
     column_filters = ("is_active", "created_at")
     column_searchable_list = ("name", "slug")
-    form_columns = ("name", "slug", "parent", "is_active")
+    form_columns = (
+        "name",
+        "slug",
+        "parent",
+        "description",
+        "image_url",
+        "seo_title",
+        "seo_description",
+        "is_active",
+    )
+    can_view_details = True
+    column_labels = {
+        "name": "Nombre",
+        "slug": "Slug",
+        "parent": "Padre",
+        "description": "Descripcion",
+        "image_url": "Imagen",
+        "seo_title": "SEO title",
+        "seo_description": "SEO description",
+        "is_active": "Activa",
+        "created_at": "Creada",
+    }
 
 
 class ProductAdmin(ModelView):

@@ -49,6 +49,8 @@ class Category(db.Model):
             "id": self.id,
             "name": self.name,
             "slug": self.slug,
+            "seo_title": self.seo_title,
+            "seo_description": self.seo_description,
             "description": self.description,
             "image_url": self.image_url,
             "parent": (
