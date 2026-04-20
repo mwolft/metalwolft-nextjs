@@ -1,21 +1,75 @@
 @import "tailwindcss";
 
-@plugin "@tailwindcss/container-queries";
-@plugin "@tailwindcss/typography";
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  --mw-primary: #ff324d;
+  --mw-primary-hover: #e11d48;
+  --mw-primary-strong: #be123c;
+
+  --mw-primary-soft: #fff1f4;
+  --mw-primary-soft-2: #ffe4ea;
+  --mw-primary-border: #ffc9d3;
+
+  --mw-neutral-50: #fafafa;
+  --mw-neutral-100: #f5f5f5;
+  --mw-neutral-200: #e5e5e5;
+  --mw-neutral-300: #d4d4d4;
+  --mw-neutral-600: #525252;
+  --mw-neutral-700: #404040;
+  --mw-neutral-800: #262626;
+  --mw-neutral-900: #171717;
+
+  --mw-radius: 1rem;
+  --mw-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --mw-shadow-md: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
 
 @layer base {
-  *,
+  * ,
   ::after,
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentColor);
+    border-color: var(--mw-neutral-200, currentColor);
   }
-}
 
-@media (prefers-color-scheme: dark) {
   html {
-    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    @apply antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply tracking-tight text-neutral-900;
+  }
+
+  h1 {
+    @apply text-4xl font-bold leading-tight md:text-5xl;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold leading-tight md:text-3xl;
+  }
+
+  h3 {
+    @apply text-xl font-semibold leading-snug;
+  }
+
+  p {
+    @apply leading-7 text-neutral-600;
+  }
+
+  a {
+    @apply transition-colors;
   }
 }
 
@@ -28,5 +82,62 @@
 a,
 input,
 button {
-  @apply focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-50 dark:focus-visible:ring-neutral-600 dark:focus-visible:ring-offset-neutral-900;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+  focus-visible-ring-color: var(--mw-primary);
+}
+
+a,
+input,
+button {
+  @apply focus-visible:ring-offset-white;
+}
+
+@layer components {
+  .mw-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .mw-section {
+    @apply py-12 md:py-16 lg:py-20;
+  }
+
+  .mw-card {
+    border: 1px solid var(--mw-neutral-200);
+    border-radius: var(--mw-radius);
+    background: #fff;
+    box-shadow: var(--mw-shadow-sm);
+    @apply transition-all duration-200;
+  }
+
+  .mw-card:hover {
+    box-shadow: var(--mw-shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .mw-button-primary {
+    background: var(--mw-primary);
+    color: white;
+    @apply inline-flex items-center justify-center rounded-xl px-5 py-3 text-sm font-semibold transition-colors;
+  }
+
+  .mw-button-primary:hover {
+    background: var(--mw-primary-hover);
+  }
+
+  .mw-button-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border px-5 py-3 text-sm font-semibold text-neutral-900 transition-colors;
+    border-color: var(--mw-neutral-300);
+    background: white;
+  }
+
+  .mw-button-secondary:hover {
+    background: var(--mw-neutral-50);
+  }
+
+  .mw-badge {
+    background: var(--mw-primary-soft);
+    color: var(--mw-primary-strong);
+    border: 1px solid var(--mw-primary-border);
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+  }
 }
