@@ -1,0 +1,7 @@
+.main {
+  min-width: 0;
+}
+
+.mainWithHeaderOffset {
+  padding-top: var(--mw-header-offset);
+}

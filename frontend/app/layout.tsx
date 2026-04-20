@@ -1,11 +1,8 @@
 // app/layout.tsx
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import { Toaster } from "sonner";
 
-import Header from "../components/mw-layout/Header";
-import Footer from "../components/mw-layout/Footer";
-import { CartProvider } from "../components/cart/CartProvider";
+import AppShell from "../components/mw-layout/AppShell";
 import { getSiteUrl } from "../lib/site";
 import "./globals.css";
 
@@ -29,14 +26,7 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  const content = (
-    <CartProvider>
-      <Header />
-      <main>{children}</main>
-      <Footer />
-      <Toaster position="top-right" richColors closeButton />
-    </CartProvider>
-  );
+  const content = <AppShell>{children}</AppShell>;
 
   return (
     <html lang="es">
